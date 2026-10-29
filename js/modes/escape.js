@@ -67,7 +67,9 @@
       { kind: 'hint', conds: codeConds },
       ...shuffle(JUNK, random).slice(0, 2).map(t => ({ kind: 'junk', text: t })),
     ];
-    const places = shuffle(SPOT_POOL, random);
+    // 사건에 scene.spots 가 있으면 그 장소를 먼저 쓰고, 모자라는 만큼 공용 장소로 채운다
+    const own = (C.scene && Array.isArray(C.scene.spots)) ? C.scene.spots : [];
+    const places = [...shuffle(own, random), ...shuffle(SPOT_POOL, random)];
     const spots = shuffle(items, random).map((item, i) => {
       const p = places[i % places.length];
       return { emoji: p[0], name: p[1], item, searched: false };
@@ -119,7 +121,7 @@
       function roomScreen(notice) {
         render(root,
           h('div', { class: 'row' },
-            h('h2', { class: 'grow' }, '🚪 사건 현장'),
+            h('h2', { class: 'grow' }, '🚪 ' + ((C.scene && C.scene.name) || '사건 현장')),
             h('span', { class: 'battery' }, `🔦 ${battery}/${level.battery}`)),
           notice ? h('div', { class: 'card alert' }, h('p', {}, notice)) : null,
           dead() ? h('div', { class: 'card alert' }, h('p', {}, h('b', {}, '배터리가 다 됐습니다.'), ' 찾은 것은 다시 볼 수 있습니다. 이제 범인을 지목하세요.')) : null,

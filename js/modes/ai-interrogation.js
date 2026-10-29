@@ -71,7 +71,7 @@ ${known}
   }
 
   // ---------- API ----------
-  async function ask({ apiKey, model }, system, history) {
+  function buildRequest({ apiKey, model }, system, history, stream) {
     const headers = {
       'content-type': 'application/json',
       'x-api-key': apiKey,
@@ -85,11 +85,67 @@ ${known}
       messages: history.map(m => ({ role: m.role, content: m.text })),
       output_config: { effort: 'low' },
     };
+    if (stream) body.stream = true;
     // 안전 분류기가 거절하면 서버가 다른 모델로 자동 재시도 (Opus/Sonnet만 지원)
     if (model.startsWith('claude-opus') || model.startsWith('claude-sonnet')) {
       body.fallbacks = 'default';
       headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
     }
+    return { headers, body };
+  }
+
+  const REFUSAL_TEXT = '(…입을 꾹 다물고 대답하지 않는다.)';
+
+  // 스트리밍 호출. 글자가 올 때마다 onDelta(지금까지의 전체 텍스트) 를 부른다.
+  // 스트리밍을 못 쓰는 환경이면 askNonStreaming 으로 떨어진다.
+  async function ask(settings, system, history, onDelta) {
+    if (typeof ReadableStream === 'undefined' || typeof TextDecoder === 'undefined') {
+      return askNonStreaming(settings, system, history);
+    }
+    const { headers, body } = buildRequest(settings, system, history, true);
+    const res = await fetch(API_URL, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = data?.error?.message || `HTTP ${res.status}`;
+      if (res.status === 401) throw new Error('API 키가 올바르지 않습니다. 설정에서 다시 입력하세요.');
+      throw new Error(msg);
+    }
+    if (!res.body) return askNonStreaming(settings, system, history);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', text = '', stop = null;
+    const handle = line => {
+      if (!line.startsWith('data:')) return;
+      let ev;
+      try { ev = JSON.parse(line.slice(5).trim()); } catch { return; }
+      if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') {
+        text += ev.delta.text;
+        if (onDelta) onDelta(text);
+      } else if (ev.type === 'message_delta' && ev.delta && ev.delta.stop_reason) {
+        stop = ev.delta.stop_reason;
+      } else if (ev.type === 'error') {
+        throw new Error((ev.error && ev.error.message) || '스트림 오류');
+      }
+    };
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        for (const line of chunk.split('\n')) handle(line);
+      }
+    }
+    for (const line of buf.split('\n')) handle(line);
+    if (stop === 'refusal') return REFUSAL_TEXT;
+    return text.trim() || '(…아무 말도 하지 않는다.)';
+  }
+
+  // 비스트리밍 호출 (스트리밍을 못 쓰는 환경용)
+  async function askNonStreaming(settings, system, history) {
+    const { headers, body } = buildRequest(settings, system, history, false);
     const res = await fetch(API_URL, { method: 'POST', headers, body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -124,6 +180,39 @@ ${known}
       let current = C.suspects[0];
       let busy = false;
 
+      // ---------- 심문 기록 저장 ----------
+      // 진행 중인 판은 SAVE_KEY 에 자동 저장되어 나중에 이어서 할 수 있다. 끝난 판은 DONE_KEY 에 남는다.
+      const SAVE_KEY = 'ai:' + C.id;
+      const DONE_KEY = 'ai:done:' + C.id;
+      function save() {
+        store.set(SAVE_KEY, { chats, used, revealed: revealedClues.map(c => c.id), budget: QUESTION_BUDGET, at: Date.now() });
+      }
+      function restore(saved) {
+        for (const s of C.suspects) chats[s.id] = (saved.chats && saved.chats[s.id]) || [];
+        revealedClues.length = 0; remainingClues.length = 0;
+        for (const c of C.clues) ((saved.revealed || []).includes(c.id) ? revealedClues : remainingClues).push(c);
+        used = saved.used || 0;
+        if (BUDGETS.some(b => b.n === saved.budget)) QUESTION_BUDGET = saved.budget;
+        current = C.suspects[0];
+      }
+      function transcript(chatsObj) {
+        const any = C.suspects.some(s => (chatsObj[s.id] || []).length);
+        if (!any) return h('p', { class: 'muted' }, '질문한 적이 없습니다.');
+        return C.suspects.map(s => (chatsObj[s.id] || []).length ? h('div', { class: 'card' },
+          h('b', {}, s.name),
+          chatsObj[s.id].map(m => h('p', { class: m.role === 'user' ? '' : 'muted' }, (m.role === 'user' ? '🔎 ' : '💬 ') + m.text)),
+        ) : null);
+      }
+      function recordScreen(rec) {
+        render(root,
+          h('h2', {}, '📜 지난 심문 기록'),
+          h('div', { class: 'card ' + (rec.win ? 'good' : 'alert') },
+            h('p', {}, `${new Date(rec.at).toLocaleString('ko')} · ${rec.win ? '사건 해결' : '오답'} · 질문 ${rec.used}개 · 지목: ${rec.target}`)),
+          transcript(rec.chats || {}),
+          h('button', { class: 'primary', onClick: intro }, '돌아가기'),
+        );
+      }
+
       // ---------- 설정 ----------
       function settingsScreen(message) {
         const keyInput = h('input', { type: 'password', placeholder: 'sk-ant-…', value: settings.apiKey, autocomplete: 'off' });
@@ -157,9 +246,16 @@ ${known}
 
       // ---------- 사건 소개 ----------
       function intro() {
+        const saved = store.get(SAVE_KEY);
+        const done = store.get(DONE_KEY);
         render(root,
           h('h2', {}, C.title),
           h('div', { class: 'card' }, h('p', {}, C.intro)),
+          saved && saved.used > 0 ? h('div', { class: 'card good' },
+            h('p', {}, h('b', {}, '진행 중인 심문이 있습니다.'), ` 질문 ${saved.used}개 사용 · ${new Date(saved.at).toLocaleString('ko')}`),
+            h('button', { class: 'primary', onClick: () => { restore(saved); main(); } }, '▶ 이어서 하기'),
+            h('button', { onClick: () => { if (confirm('진행 기록을 지우고 새로 시작할까요?')) { store.del(SAVE_KEY); intro(); } } }, '기록 지우고 새로 시작'),
+          ) : null,
           h('div', { class: 'card' },
             h('h3', {}, '규칙'),
             h('p', { class: 'muted' }, `· 질문은 총 ${QUESTION_BUDGET}개. 용의자에게 묻거나 단서 카드를 여는 데 1개씩 씁니다.`),
@@ -172,8 +268,12 @@ ${known}
             class: 'grow' + (b.n === QUESTION_BUDGET ? ' primary' : ''),
             onClick: () => { QUESTION_BUDGET = b.n; store.set('budget', b.n); intro(); },
           }, `${b.label} · ${b.n}개`))),
-          h('button', { class: 'primary', onClick: main }, '심문 시작'),
+          h('button', { class: 'primary', onClick: () => {
+            if (saved && saved.used > 0 && !confirm('진행 중인 기록을 덮어쓰고 새로 시작합니다. 괜찮나요?')) return;
+            main();
+          } }, '심문 시작'),
           h('button', { onClick: () => settingsScreen() }, '⚙ 설정'),
+          done ? h('button', { onClick: () => recordScreen(done) }, '📜 지난 심문 기록 보기') : null,
         );
       }
 
@@ -218,8 +318,15 @@ ${known}
           const typing = h('div', { class: 'bubble them typing' }, '…');
           chatBox.append(typing); chatBox.scrollTop = chatBox.scrollHeight;
           try {
-            const reply = await ask(settings, buildSystem(C, s, revealedClues), hist);
+            const reply = await ask(settings, buildSystem(C, s, revealedClues), hist, partial => {
+              // 글자가 오는 대로 말풍선 채우기 (다른 용의자 탭으로 옮겼으면 조용히 무시)
+              if (current !== s) return;
+              typing.classList.remove('typing');
+              typing.textContent = partial;
+              chatBox.scrollTop = chatBox.scrollHeight;
+            });
             hist.push({ role: 'assistant', text: reply });
+            save();
           } catch (e) {
             hist.pop(); used--; // 실패한 질문은 환불
             hist.push({ role: 'assistant', text: `(오류: ${e.message})` });
@@ -235,6 +342,7 @@ ${known}
           const clue = remainingClues.shift();
           revealedClues.push(clue);
           used++;
+          save();
           render(root,
             h('h2', {}, '🗂 단서 카드'),
             h('div', { class: 'card' }, h('p', {}, clue.text)),
@@ -284,6 +392,8 @@ ${known}
       function finish(target) {
         const culprit = C.suspects.find(s => s.id === C.culprit);
         const win = target.id === culprit.id;
+        store.del(SAVE_KEY);
+        store.set(DONE_KEY, { win, target: target.name, used, chats, at: Date.now() });
         render(root,
           h('h2', {}, win ? '🎉 사건 해결!' : '❌ 오답'),
           h('div', { class: 'card ' + (win ? 'good' : 'alert') },
@@ -293,6 +403,8 @@ ${known}
           h('h3', {}, '전원 프로필'),
           C.suspects.map(s => h('div', { class: 'card' + (s === culprit ? ' alert' : '') },
             h('b', {}, s.name), h('p', { class: 'muted' }, s.profile))),
+          h('h3', {}, '심문 기록'),
+          transcript(chats),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
       }
