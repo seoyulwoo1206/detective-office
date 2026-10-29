@@ -22,7 +22,11 @@ index.html            스크립트 로드 순서: core → cases → modes → a
 style.css
 js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/render() DOM 헬퍼, rng(seed), shuffle, store(localStorage),
                       nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막)
-js/app.js             홈(모드 선택) → 사건 선택 → mode.start(). DO.goHome() 제공.
+js/guide.js           온보딩: 설명 시트(오버레이), 앱 소개/용어 사전, 모드별 설명 GUIDES(meta: 인원/시간/난이도/분류 포함).
+                      DO.openGuide(id), DO.openAppGuide(), DO.modeMeta(id). 모드를 추가하면 여기에 항목도 추가.
+js/app.js             홈(분류별 모드 카드 + 처음이세요? 카드) → 사건 선택 → mode.start(). DO.goHome(), DO.enterMode(mode) 제공.
+                      헤더 ❓ 버튼 = 현재 모드 설명. 처음 실행이면 앱 소개를 한 번 자동으로 띄움(do:seenIntro).
+img/guide/<id>-N.jpg  설명 시트에 들어가는 예시 화면 (모바일 뷰포트 375px 스크린샷, 폭 480으로 축소). 없으면 조용히 생략.
 js/modes/fold.js      모드 1 용의자 접기
 js/modes/forehead.js  모드 2 이마 게임
 js/modes/blind-fold.js  모드 6 이마 접기 (접기 + 이마 게임 결합)
@@ -58,6 +62,11 @@ DO.registerCase({
 - 범인의 `lies`에는 보통 2개: 현장 태그(사실은 해당하는데 "안 접음") + 알리바이 태그(사실은 아닌데 "접음").
 - 알리바이 장소에 실제로 있던 사람은 딱 1명(증인). 그 증인의 "혼자 있었다" 증언이 알리바이 폭로 단서가 된다.
 - 단서는 3장: 알리바이 폭로 1, 현장 증거 1, 중립 1. 중립 단서가 먼저 나오게 배치하면 바로 들통나지 않는다.
+
+## 온보딩 규칙
+- 모드마다 `guide.js`의 GUIDES 에 tagline / goal / steps(제목+설명+예시 이미지) / example(구체 상황) / tips 를 쓴다. 홈 카드와 사건 선택 화면의 배지는 meta 에서 나온다.
+- 설명은 반드시 시트로 띄운다(`#root` 를 갈아끼우지 말 것). 게임 중 ❓ 를 눌러도 상태가 유지되어야 한다.
+- 예시 화면을 다시 찍을 때: 브라우저를 375px 모바일로 맞추고 `img/guide/` 에 저장한 뒤 PIL 로 아래 여백을 잘라 폭 480 으로 줄인다.
 
 ## 모드별 메모
 - **용의자 접기**: 손가락 5개. 2라운드마다 단서 1장. 거짓말 판정은 "선언 ≠ 사실"(해당되는데 안 접음, 해당 안 되는데 접음 둘 다). 들통나면 -2, 지목 실패 -1. 범인은 항상 플레이어 중에 포함.

@@ -221,7 +221,7 @@
           ),
           h('h3', {}, '이 사건으로 플레이'),
           playable.map(m => h('button', { class: 'mode', onClick: () => {
-            document.getElementById('title').textContent = m.name;
+            if (DO.enterMode) DO.enterMode(m); else document.getElementById('title').textContent = m.name;
             m.start(root, { case: C });
           } }, h('b', {}, m.name), h('div', { class: 'muted' }, m.desc))),
           h('h3', {}, '다른 사건'),

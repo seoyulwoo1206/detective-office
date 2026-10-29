@@ -138,8 +138,8 @@
             );
           })),
           h('div', { class: 'row' },
-            h('button', { class: 'grow', onClick: notebook }, `📓 탐정 수첩 (${found().length})`),
-            h('button', { class: 'grow', onClick: compare }, compared ? '🔍 단서 대조' : `🔍 단서 대조 (🔦 ${COMPARE_COST})`),
+            h('button', { class: 'grow', onClick: notebook }, `📓 수첩 (${found().length})`),
+            h('button', { class: 'grow', onClick: compare }, compared ? '🔍 단서 대조' : `🔍 대조 (🔦${COMPARE_COST})`),
           ),
           h('button', { class: 'danger', onClick: accuse }, '🎯 범인 지목'),
         );
