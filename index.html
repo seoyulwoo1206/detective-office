@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#15161a">
+<title>탐정 사무소</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1 id="title">탐정 사무소</h1>
+  <button id="home" hidden>← 홈</button>
+</header>
+<main id="root"></main>
+
+<!-- 코어 -->
+<script src="js/core.js"></script>
+
+<!-- 사건 데이터 (추가하면 여기에 한 줄 추가) -->
+<script src="data/cases/case-001.js"></script>
+<script src="data/cases/case-002.js"></script>
+<script src="data/cases/case-003.js"></script>
+<script src="data/cases/case-004.js"></script>
+<script src="data/cases/case-005.js"></script>
+
+<!-- 모드 (등록 순서 = 홈 화면 순서) -->
+<script src="js/modes/fold.js"></script>
+<script src="js/modes/forehead.js"></script>
+<script src="js/modes/ai-interrogation.js"></script>
+<script src="js/modes/daily.js"></script>
+<script src="js/modes/escape.js"></script>
+
+<!-- 앱 셸 (마지막) -->
+<script src="js/app.js"></script>
+</body>
+</html>
