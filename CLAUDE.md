@@ -64,10 +64,11 @@ DO.registerCase({
 - 단서는 3장: 알리바이 폭로 1, 현장 증거 1, 중립 1. 중립 단서가 먼저 나오게 배치하면 바로 들통나지 않는다.
 
 ## 디자인 규칙 (style.css)
-- 다크 노와르 테마. 색은 전부 `:root` 토큰(`--accent` 금색, `--danger`, `--ok`, `--info`, `--purple`)으로. 배경은 body 의 다층 radial-gradient + 점 패턴(`background-attachment: fixed`).
+- 빈티지 사건 파일 테마 (크림색 종이 · 잉크 테두리 · 붉은 도장색). 색은 전부 `:root` 토큰으로: `--paper`(카드 바탕), `--ink`(테두리·그림자·검정 버튼), `--accent`(붉은색, primary 버튼·h3), `--danger`, `--ok`, `--info`, `--purple`. 배경은 body 의 줄 노트 패턴(repeating-linear-gradient 28px) + 종이 그라데이션(`background-attachment: fixed`).
 - 글꼴: 본문 Noto Sans KR(Pretendard 있으면 우선), 제목(h1~h3, `.role`, `button.mode b`) Gowun Batang 세리프. Google Fonts 링크가 index.html 에 있고 오프라인이면 시스템 글꼴로 대체된다.
-- 카드 `.card` 는 반투명 + blur + 그림자. `.secret` 은 금색 점선 + 오른쪽 위 "비밀" 리본(`::after`). 홈 모드 카드는 `type-party/coop/solo/daily` 클래스로 왼쪽 색띠가 바뀐다.
-- `#root` 직계 자식은 `rise` 애니메이션으로 올라온다. 스크린샷을 찍을 때는 0.8초 기다릴 것. `prefers-reduced-motion` 이면 꺼진다.
+- 버튼은 `1.5px` 잉크 테두리 + 오프셋 그림자(`--shadow-ink`, 누르면 2px 이동). `.primary` 붉은색, `.danger` 잉크색(붉은 그림자). 모서리는 `--radius: 6px` 로 작게. 카드 `.card` 는 종이색 + 잉크 테두리 + 옅은 오프셋 그림자(blur 없음). `.secret` 은 붉은 점선 + 오른쪽 위 "CONFIDENTIAL" 리본(`::after`). 홈 모드 카드는 `type-party/coop/solo/daily` 클래스로 왼쪽 색띠가 바뀐다.
+- `#root` 직계 자식은 `rise` 애니메이션으로 올라온다. 스크린샷을 찍을 때는 0.8초 기다리거나 `#root > * { animation: none }` 을 주입할 것(브라우저 패널이 숨겨져 있으면 애니메이션이 멈춘 채 찍힌다). `prefers-reduced-motion` 이면 꺼진다.
+- 다른 분위기 후보(네온 사이버 / 파스텔 팝 / 미니멀 모노)는 검토 후 폐기했다. 테마를 바꾸려면 `:root` 토큰과 body 배경, 버튼·카드 규칙을 함께 손본다.
 
 ## 온보딩 규칙
 - 모드마다 `guide.js`의 GUIDES 에 tagline / goal / steps(제목+설명+예시 이미지) / example(구체 상황) / tips 를 쓴다. 홈 카드와 사건 선택 화면의 배지는 meta 에서 나온다.
