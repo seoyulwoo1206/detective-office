@@ -22,7 +22,7 @@
 
   function modeCard(m) {
     const meta = DO.modeMeta ? DO.modeMeta(m.id) : {};
-    return h('div', { class: 'mode-card' },
+    return h('div', { class: 'mode-card' + (meta.type ? ' type-' + meta.type : '') },
       h('h3', {}, m.name + (m.ready ? '' : ' (준비 중)')),
       badges(meta),
       h('p', { class: 'muted' }, m.desc),

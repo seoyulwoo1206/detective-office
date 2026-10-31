@@ -63,6 +63,12 @@ DO.registerCase({
 - 알리바이 장소에 실제로 있던 사람은 딱 1명(증인). 그 증인의 "혼자 있었다" 증언이 알리바이 폭로 단서가 된다.
 - 단서는 3장: 알리바이 폭로 1, 현장 증거 1, 중립 1. 중립 단서가 먼저 나오게 배치하면 바로 들통나지 않는다.
 
+## 디자인 규칙 (style.css)
+- 다크 노와르 테마. 색은 전부 `:root` 토큰(`--accent` 금색, `--danger`, `--ok`, `--info`, `--purple`)으로. 배경은 body 의 다층 radial-gradient + 점 패턴(`background-attachment: fixed`).
+- 글꼴: 본문 Noto Sans KR(Pretendard 있으면 우선), 제목(h1~h3, `.role`, `button.mode b`) Gowun Batang 세리프. Google Fonts 링크가 index.html 에 있고 오프라인이면 시스템 글꼴로 대체된다.
+- 카드 `.card` 는 반투명 + blur + 그림자. `.secret` 은 금색 점선 + 오른쪽 위 "비밀" 리본(`::after`). 홈 모드 카드는 `type-party/coop/solo/daily` 클래스로 왼쪽 색띠가 바뀐다.
+- `#root` 직계 자식은 `rise` 애니메이션으로 올라온다. 스크린샷을 찍을 때는 0.8초 기다릴 것. `prefers-reduced-motion` 이면 꺼진다.
+
 ## 온보딩 규칙
 - 모드마다 `guide.js`의 GUIDES 에 tagline / goal / steps(제목+설명+예시 이미지) / example(구체 상황) / tips 를 쓴다. 홈 카드와 사건 선택 화면의 배지는 meta 에서 나온다.
 - 설명은 반드시 시트로 띄운다(`#root` 를 갈아끼우지 말 것). 게임 중 ❓ 를 눌러도 상태가 유지되어야 한다.
