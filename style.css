@@ -151,6 +151,14 @@ textarea { resize: vertical; min-height: 60px; }
 }
 .badge.key { color: var(--accent); border-color: var(--accent); }
 
+/* 사건 선택: 배경 필터 칩 */
+.chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 8px; margin: 6px 0 2px; }
+.chips .chip {
+  width: auto; flex: 0 0 auto; margin: 0; padding: 6px 11px; font-size: 13px; border-radius: 999px;
+  box-shadow: 2px 2px 0 var(--ink); white-space: nowrap;
+}
+.chips .chip.active { background: var(--ink); color: var(--bg2); }
+
 /* ---------- 모드 공용 부품 ---------- */
 .fingers { font-size: 22px; letter-spacing: 2px; }
 .player { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 8px; }

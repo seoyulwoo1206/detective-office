@@ -2,6 +2,11 @@
 // 헤더의 ❓ 버튼은 현재 모드의 설명 시트(guide.js)를 띄운다. 게임 화면은 건드리지 않는다.
 (() => {
   const { h, render, modes, listCases, store } = DO;
+
+  // 사건 선택 화면의 배경별 묶음 순서. 사건 데이터의 category 문자열과 맞춘다. 쉬운 것(학교)이 먼저.
+  const CATEGORIES = [
+    ['학교·학원', '🏫'], ['가족·동네', '🏡'], ['모임·행사', '🎉'], ['가게·시설', '🏢'], ['여행', '✈️'], ['온라인', '🎮'],
+  ];
   const root = document.getElementById('root');
   const homeBtn = document.getElementById('home');
   const helpBtn = document.getElementById('help');
@@ -84,18 +89,36 @@
     const cases = listCases();
     const gen = DO.generateCase; // daily.js 가 등록하면 존재
     const meta = DO.modeMeta ? DO.modeMeta(mode.id) : {};
-    render(root,
+    // 배경별 묶음. 사건의 category 가 목록에 없으면 "기타"로.
+    const groups = CATEGORIES.map(([name, emoji]) => ({ name, emoji, cases: cases.filter(c => c.category === name) }));
+    const known = new Set(CATEGORIES.map(([n]) => n));
+    const etc = cases.filter(c => !known.has(c.category));
+    if (etc.length) groups.push({ name: '기타', emoji: '📁', cases: etc });
+    const nonEmpty = groups.filter(g => g.cases.length);
+    let filter = store.get('caseFilter', null);
+    if (filter && !nonEmpty.some(g => g.name === filter)) filter = null;
+
+    const caseBtn = c => h('button', { class: 'mode', onClick: () => begin(mode, c) },
+      h('b', {}, c.title),
+      h('div', { class: 'muted' }, `용의자 ${c.suspects.length}명 · ${c.intro.slice(0, 48)}…`),
+    );
+    const draw = () => render(root,
       h('div', { class: 'card' },
         h('p', {}, h('b', {}, mode.name), ' · ', h('span', { class: 'muted' }, mode.desc)),
         badges(meta),
         h('button', { class: 'small', onClick: () => DO.openGuide && DO.openGuide(mode.id) }, '❓ 이 게임 설명 보기'),
       ),
       h('h3', {}, '어떤 사건으로 할까요?'),
-      h('p', { class: 'muted small-text' }, '처음이면 위에서부터. 용의자 수가 적을수록 쉽습니다.'),
-      cases.map(c => h('button', { class: 'mode', onClick: () => begin(mode, c) },
-        h('b', {}, c.title),
-        h('div', { class: 'muted' }, `용의자 ${c.suspects.length}명 · ${c.intro.slice(0, 48)}…`),
-      )),
+      h('p', { class: 'muted small-text' }, '처음이면 학교·학원부터. 용의자 수가 적을수록 쉽습니다.'),
+      h('div', { class: 'chips' },
+        h('button', { class: 'chip' + (filter ? '' : ' active'), onClick: () => { filter = null; store.set('caseFilter', null); draw(); } }, `전체 ${cases.length}`),
+        nonEmpty.map(g => h('button', { class: 'chip' + (filter === g.name ? ' active' : ''), onClick: () => { filter = g.name; store.set('caseFilter', g.name); draw(); } }, `${g.emoji} ${g.name} ${g.cases.length}`)),
+      ),
+      nonEmpty.filter(g => !filter || g.name === filter).map(g => [
+        h('div', { class: 'section-title' }, `${g.emoji} ${g.name} · ${g.cases.length}개`),
+        g.cases.map(caseBtn),
+      ]),
+      gen ? h('div', { class: 'section-title' }, '🤖 자동 생성') : null,
       gen ? h('button', { class: 'mode', onClick: () => begin(mode, gen(DO.todaySeed())) },
         h('b', {}, '📅 오늘의 사건'),
         h('div', { class: 'muted' }, '매일 바뀌는 자동 생성 사건. 오늘은 모두 같은 사건.'),
@@ -105,6 +128,7 @@
         h('div', { class: 'muted' }, '매번 새로 만드는 사건.'),
       ) : null,
     );
+    draw();
   }
 
   function begin(mode, c) {

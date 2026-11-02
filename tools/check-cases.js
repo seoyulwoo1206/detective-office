@@ -50,6 +50,8 @@ for (const C of DO.listCases()) {
     if (!C.clues.some(c => c.exposes === t)) errs.push(`거짓말 ${t} 를 폭로하는 단서가 없음`);
   }
   if (C.clues.length && C.clues[0].exposes) warns.push('첫 단서가 중립이 아님 (바로 들통날 수 있음)');
+  if (!C.category) warns.push('category 없음 (사건 선택 화면에서 "기타"로 묶임)');
+  if (!C.scene || !Array.isArray(C.scene.spots) || C.scene.spots.length < 4) warns.push('scene.spots 가 4개 미만 (방탈출이 공용 장소로 채움)');
 
   const code = C.conditions.slice(0, 3).map(c => C.suspects.filter(s => claims(s, c.tag)).length % 10).join('');
   const status = errs.length ? 'FAIL' : 'ok';

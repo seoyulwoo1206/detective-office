@@ -24,7 +24,8 @@ js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/
                       nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막)
 js/guide.js           온보딩: 설명 시트(오버레이), 앱 소개/용어 사전, 모드별 설명 GUIDES(meta: 인원/시간/난이도/분류 포함).
                       DO.openGuide(id), DO.openAppGuide(), DO.modeMeta(id). 모드를 추가하면 여기에 항목도 추가.
-js/app.js             홈(분류별 모드 카드 + 처음이세요? 카드) → 사건 선택 → mode.start(). DO.goHome(), DO.enterMode(mode) 제공.
+js/app.js             홈(분류별 모드 카드 + 처음이세요? 카드) → 사건 선택(배경별 묶음 + 필터 칩, 선택은 do:caseFilter 에 기억) → mode.start().
+                      DO.goHome(), DO.enterMode(mode) 제공. 배경 목록은 CATEGORIES 상수.
                       헤더 ❓ 버튼 = 현재 모드 설명. 처음 실행이면 앱 소개를 한 번 자동으로 띄움(do:seenIntro).
 img/guide/<id>-N.jpg  설명 시트에 들어가는 예시 화면 (모바일 뷰포트 375px 스크린샷, 폭 480으로 축소). 없으면 조용히 생략.
 js/modes/fold.js      모드 1 용의자 접기
@@ -42,6 +43,7 @@ tools/check-cases.js  사건 데이터 불변 조건 검사 (node tools/check-ca
 DO.registerCase({
   "id": "case-001",
   "title": "...",
+  "category": "학교·학원",   // 사건 선택 화면의 묶음. app.js 의 CATEGORIES 중 하나(학교·학원 / 가족·동네 / 모임·행사 / 가게·시설 / 여행 / 온라인). 없으면 "기타"
   "intro": "사건 개요(플레이어에게 보여줌)",
   "culprit": "suspect id",
   "scene": { "name": "음악실", "spots": [["🎹", "피아노 뚜껑 안"], ...] },   // 선택. 방탈출이 쓰는 현장 이름과 장소 4~5개
@@ -95,5 +97,4 @@ DO.registerCase({
 
 ## 다음 할 일
 - [ ] 사건 더 작성 (`data/cases/`) — 아직 없는 배경: 놀이공원, 지하철, PC방, 농구 대회 등. 자물쇠 번호가 겹치지 않게 조건 순서를 조정할 것(check-cases 출력 확인)
-- [ ] 사건 선택 화면이 길어졌다(17개). 배경별 묶기나 검색을 고려
 - [ ] 멀티 디바이스(같은 방 접속) — 서버가 필요해서 file:// 단독 실행 원칙과 충돌. 하려면 별도 서버 프로젝트로.
