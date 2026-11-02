@@ -89,6 +89,16 @@
       let level = LEVELS[1];
       let battery = 0;
       let compared = false;
+      // 역할 분담: 2명 이상이면 뒤질 곳을 사람별로 나눈다 (잠긴 상자는 공용). null 이면 다 같이.
+      let teamMode = false;
+      let players = null;
+
+      const TEAM_MIN = 2, TEAM_MAX = 4;
+      function assignSpots(names) {
+        players = names;
+        room.spots.filter(sp => !sp.locked).forEach((sp, i) => { sp.owner = i % names.length; });
+      }
+      const ownerName = sp => (players && sp.owner != null) ? players[sp.owner] : null;
 
       const found = () => room.spots.filter(s => s.searched).map(s => s.item);
       const foundClues = () => found().filter(i => i.kind === 'clue').map(i => i.clue);
@@ -112,8 +122,26 @@
           h('h3', {}, '난이도'),
           LEVELS.map(L => h('button', { class: 'mode' + (L === level ? ' primary' : ''), onClick: () => { level = L; levelSelect(); } },
             h('b', {}, L.label), h('div', { class: L === level ? '' : 'muted' }, L.desc))),
+          h('h3', {}, '인원'),
+          h('div', { class: 'row' },
+            h('button', { class: 'grow' + (!teamMode ? ' primary' : ''), onClick: () => { teamMode = false; levelSelect(); } }, '👥 다 같이 한 폰으로'),
+            h('button', { class: 'grow' + (teamMode ? ' primary' : ''), onClick: () => { teamMode = true; levelSelect(); } }, `🧭 역할 나누기 (${TEAM_MIN}~${TEAM_MAX}명)`),
+          ),
+          h('p', { class: 'muted small-text' }, teamMode
+            ? '뒤질 곳을 사람별로 나눕니다. 자기 담당 장소는 본인이 직접 뒤지고, 찾은 내용은 말로 공유하세요. 잠긴 상자·수첩·대조는 공용.'
+            : '폰 하나를 다 같이 보면서 토론합니다.'),
           h('p', { class: 'muted small-text' }, `용의자 ${C.suspects.length}명 · 뒤질 곳 ${room.spots.length}곳`),
-          h('button', { class: 'primary', onClick: () => { battery = level.battery; roomScreen(); } }, '🔦 방에 들어가기'),
+          h('button', { class: 'primary', onClick: () => {
+            battery = level.battery;
+            if (!teamMode) { players = null; room.spots.forEach(sp => { delete sp.owner; }); return roomScreen(); }
+            DO.nameEntry(root, {
+              min: TEAM_MIN, max: TEAM_MAX,
+              title: '🧭 역할 나누기',
+              intro: '참가자 이름을 넣으면 뒤질 곳을 고르게 나눠 줍니다.',
+              note: `플레이어 ${TEAM_MIN}~${TEAM_MAX}명. 담당 장소는 본인만 뒤집니다.`,
+              onStart: names => { assignSpots(names); roomScreen(); },
+            });
+          } }, '🔦 방에 들어가기'),
         );
       }
 
@@ -125,16 +153,23 @@
             h('span', { class: 'battery' }, `🔦 ${battery}/${level.battery}`)),
           notice ? h('div', { class: 'card alert' }, h('p', {}, notice)) : null,
           dead() ? h('div', { class: 'card alert' }, h('p', {}, h('b', {}, '배터리가 다 됐습니다.'), ' 찾은 것은 다시 볼 수 있습니다. 이제 범인을 지목하세요.')) : null,
+          players ? h('div', { class: 'badges' }, players.map((n, i) => {
+            const mine = room.spots.filter(sp => sp.owner === i);
+            const left = mine.filter(sp => !sp.searched).length;
+            return h('span', { class: 'badge owner-' + i }, `${n} · 남은 곳 ${left}/${mine.length}`);
+          })) : null,
           h('div', { class: 'spots' }, room.spots.map(sp => {
             const meta = sp.searched ? ITEM_META[sp.item.kind] : null;
+            const who = ownerName(sp);
             return h('button', {
-              class: 'spot' + (sp.searched ? ' done' : ''),
+              class: 'spot' + (sp.searched ? ' done' : '') + (sp.owner != null ? ' owner-' + sp.owner : ''),
               disabled: dead() && !sp.searched,
               onClick: () => openSpot(sp),
             },
               h('span', { class: 'emoji' }, sp.searched ? meta.emoji : sp.emoji),
               h('span', {}, sp.name),
               h('span', { class: 'muted small-text' }, sp.searched ? meta.label : (sp.locked ? '번호 자물쇠' : '안 뒤짐')),
+              players ? h('span', { class: 'who' }, who ? '👤 ' + who : '공용') : null,
             );
           })),
           h('div', { class: 'row' },
@@ -153,6 +188,15 @@
         if (sp.searched) return showItem(sp, false);
         if (sp.locked) return boxScreen(sp);
         if (dead()) return roomScreen();
+        const who = ownerName(sp);
+        if (who) {
+          // 역할 분담: 담당자에게 폰을 넘긴 뒤 뒤진다
+          return DO.handOff(root, who, `${sp.emoji} ${sp.name}은(는) ${who}님 담당입니다. 본인이 직접 뒤지세요.`, () => search(sp));
+        }
+        search(sp);
+      }
+
+      function search(sp) {
         spend(1);
         sp.searched = true;
         showItem(sp, true);
@@ -315,6 +359,7 @@
             h('div', { class: 'big' }, win ? '⭐'.repeat(stars) : '🔒'),
             h('p', {}, h('b', {}, win ? `${culprit.name}이(가) 범인이었습니다.` : `${target.name}은(는) 범인이 아닙니다. 진짜 범인은 ${culprit.name}.`)),
             h('p', { class: 'muted' }, `난이도 ${level.label} · 남은 배터리 ${battery}/${level.battery} · 단서 ${foundClues().length}/${C.clues.length} · 진술서 ${foundStatements().length}/${C.suspects.length}`),
+            players ? h('p', { class: 'muted small-text' }, '뒤진 곳: ' + players.map((n, i) => `${n} ${room.spots.filter(sp => sp.owner === i && sp.searched).length}곳`).join(' · ')) : null,
           ),
           h('h3', {}, '범인의 거짓말'),
           h('div', { class: 'card alert' },
