@@ -28,11 +28,11 @@ new Function(fs.readFileSync(path.join(root, 'js/alibi-engine.js'), 'utf8'))();
 const A = DO.alibi;
 const N = +(process.argv[2] || 6);
 let bad = 0, total = 0;
-const stats = [0, 1, 2].map(() => ({ n: 0, ok: 0, depth: {}, cards: 0, ms: 0 }));
+const stats = A.LEVELS.map(() => ({ n: 0, ok: 0, depth: {}, cards: 0, ms: 0 }));
 const fail = (id, msg) => { console.log(`   ✗ ${id}: ${msg}`); bad++; };
 
 for (const C of DO.listCases()) {
-  for (let level = 0; level < 3; level++) {
+  for (let level = 0; level < A.LEVELS.length; level++) {
     for (let v = 0; v < N; v++) {
       const id = `${C.id} L${level} v${v}`;
       const t0 = Date.now();
@@ -49,6 +49,15 @@ for (const C of DO.listCases()) {
       if (p.suspects[ci].id !== C.culprit) fail(id, '범인 번호가 사건과 다름');
       const sol = A.solve(p);
       if (sol.length !== 1 || sol[0] !== ci) fail(id, `유일해 아님: 후보 ${JSON.stringify(sol)}`);
+      // (용의자, 범행 시각) 쌍으로도 정답 하나뿐이어야 한다. 전설에서는 시각 후보가 3칸.
+      const pairs = A.solvePairs(p);
+      if (pairs.length !== 1 || pairs[0][0] !== ci || pairs[0][1] !== p.tStar) fail(id, `(누가, 언제) 유일해 아님: ${JSON.stringify(pairs)}`);
+      if (!p.window.includes(p.tStar)) fail(id, '시각 후보에 범행 시각이 없음');
+      if (p.window.length !== (level === 3 ? 3 : 1)) fail(id, `시각 후보 수가 이상함: ${p.window.length}`);
+      for (const tc of p.timeCores) {
+        if (p.suspects.some((_, i) => A.feasible(p, i, tc.core, tc.t))) fail(id, `시각 해설 근거가 ${p.times[tc.t]} 을 지우지 못함`);
+      }
+      if (level === 3) { st.tcore = st.tcore || {}; const m = Math.max(...p.timeCores.map(tc => tc.core.length)); st.tcore[m] = (st.tcore[m] || 0) + 1; }
       for (const c of p.evidence) if (!A.holds(c, p.truth)) fail(id, `거짓인 증거: ${JSON.stringify(c)}`);
       for (const c of p.testimonies) if (c.by !== ci && !A.holds(c, p.truth)) fail(id, `결백한 사람의 거짓 증언: ${JSON.stringify(c)}`);
       p.suspects.forEach((s, i) => {
@@ -71,6 +80,6 @@ for (const C of DO.listCases()) {
 
 console.log(`퍼즐 ${total}개 검사, 오류 ${bad}건`);
 stats.forEach((s, L) => {
-  console.log(`  난이도 ${A.LEVELS[L].label}: 조건 충족 ${s.ok}/${s.n} · 깊이 분포 ${JSON.stringify(s.depth)} · 평균 증거 ${(s.cards / s.n).toFixed(1)}장 · 평균 ${(s.ms / s.n).toFixed(0)}ms(최대 ${s.max}ms) · 꼭 필요한 증거 ${JSON.stringify(s.needed)}`);
+  console.log(`  난이도 ${A.LEVELS[L].label}: 조건 충족 ${s.ok}/${s.n} · 깊이 분포 ${JSON.stringify(s.depth)} · 평균 증거 ${(s.cards / s.n).toFixed(1)}장 · 평균 ${(s.ms / s.n).toFixed(0)}ms(최대 ${s.max}ms) · 꼭 필요한 증거 ${JSON.stringify(s.needed)}${s.tcore ? ' · 시각을 지우는 데 필요한 최대 장수 ' + JSON.stringify(s.tcore) : ''}`);
 });
 process.exit(bad ? 1 : 0);

@@ -26,10 +26,17 @@
     ready: true,
     start(root, ctx) {
       const C = ctx.case;
-      let level = Math.max(0, Math.min(2, store.get('alibi:level', 0) | 0));
+      const TOP = A.LEVELS.length - 1;
+      let level = Math.max(0, Math.min(TOP, store.get('alibi:level', 0) | 0));
       let variant = store.get('alibi:v:' + C.id, 0) | 0;
       let p = null;
-      let score, hinted, wrong, locked, marks, focus, mapTime, timer = null;
+      // hinted: 받은 힌트 목록({type:'time',t} | {type:'who',i}), wrong: 잘못 지목한 사람, wrongTimes: 사람은 맞혔지만 틀린 시각(전설),
+      // outTimes: 범행 시각이 아니라고 밝혀진 칸(전설)
+      let score, hinted, wrong, wrongTimes, outTimes, locked, marks, focus, mapTime, timer = null;
+      const misses = () => wrong.length + wrongTimes.length;
+      // 범행 시각을 아직 모르는가 (전설에서 후보가 둘 이상 남았을 때)
+      const timeOpen = () => p.hidden && p.window.filter(t => !outTimes.has(t)).length > 1;
+      const windowText = () => `${p.times[p.window[0]]}~${p.times[p.window[p.window.length - 1]]}`;
 
       const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
       const name = i => p.suspects[i].name;
@@ -54,6 +61,7 @@
             h('p', { class: 'muted' }, '· ', h('b', {}, '딱 한 명만 거짓말'), '을 합니다. 범행 시각에 현장에 있었던 걸 숨긴 사람입니다.'),
             h('p', { class: 'muted' }, '· CCTV · 문 센서 · 출입 기록은 ', h('b', {}, '항상 사실'), '입니다. 목격 증언은 말한 사람이 범인이면 거짓일 수 있습니다.'),
             h('p', { class: 'muted' }, '· 한 시간 칸에 제자리에 있거나, 지도에서 이어진 곳으로 한 칸만 갈 수 있습니다.'),
+            level === TOP ? h('p', {}, '· ', h('b', {}, '전설: 범행 시각이 숨겨져 있습니다.'), ' 연속한 세 시각 중 하나라는 것만 압니다. 범행 시각의 현장에는 범인 혼자였습니다. 누가, 언제를 함께 지목하세요.') : null,
             h('p', { class: 'muted' }, `· 100점에서 시작. 힌트 -${HINT_COST}, 오판 -${WRONG_COST}. 지목 기회는 ${CHANCES}번.`),
           ),
           h('h3', {}, '난이도'),
@@ -68,8 +76,8 @@
       function begin() {
         p = A.generate(C, level, variant);
         if (!p) return render(root, h('p', {}, '이 사건으로는 타임라인을 만들지 못했습니다.'), h('button', { onClick: () => DO.goHome() }, '처음으로'));
-        score = 100; hinted = []; wrong = []; locked = new Set(); marks = p.suspects.map(() => 0);
-        focus = null; mapTime = p.tStar;
+        score = 100; hinted = []; wrong = []; wrongTimes = []; outTimes = new Set(); locked = new Set(); marks = p.suspects.map(() => 0);
+        focus = null; mapTime = p.hidden ? p.window[1] : p.tStar;
         sfx('paper');
         board();
       }
@@ -157,7 +165,10 @@
           if (locked.has(i)) return;
           marks[i] = (marks[i] + 1) % 3; sfx('tick'); update();
         } }, h('span', { class: 'tl-face' }, face(i, 30), num(i), markEls[i]), h('span', { class: 'tl-name' }, s.name)));
-        const timeEls = p.times.map((tm, t) => h('th', { class: 'tl-time' + (t === p.tStar ? ' crime' : '') }, t === p.tStar ? h('span', { class: 'crime-tag' }, '범행') : null, tm));
+        // 시간 머리: 보통은 범행 칸 하나에 "범행", 전설은 후보 세 칸에 "후보"(아니라고 밝혀지면 줄을 긋는다)
+        const timeEls = p.times.map((tm, t) => (p.hidden
+          ? h('th', { class: 'tl-time' + (p.window.includes(t) ? ' cand' : '') }, p.window.includes(t) ? h('span', { class: 'crime-tag' }, '후보') : null, tm)
+          : h('th', { class: 'tl-time' + (t === p.tStar ? ' crime' : '') }, t === p.tStar ? h('span', { class: 'crime-tag' }, '범행') : null, tm)));
         const cellEls = p.suspects.map((s, i) => p.claims[i].map((L, t) => h('button', {
           class: 'tlc', style: `background:${p.places[L].color}`, title: `${s.name} · ${p.times[t]} · ${p.places[L].name}`, 'data-quiet': '1',
           onClick: () => {
@@ -191,29 +202,47 @@
         });
 
         const map = buildMap(null);
-        const chipEls = p.times.map((tm, t) => h('button', { class: 'chip', 'data-quiet': '1', onClick: () => { mapTime = t; sfx('tick'); update(); } }, (t === p.tStar ? '🚨 ' : '') + tm));
+        const chipEls = p.times.map((tm, t) => h('button', { class: 'chip', 'data-quiet': '1', onClick: () => { mapTime = t; sfx('tick'); update(); } },
+          (p.hidden ? (p.window.includes(t) ? '❔ ' : '') : (t === p.tStar ? '🚨 ' : '')) + tm));
         const mapTitle = h('h3', {});
+        const headline = h('b', {});
 
         const hintBox = h('div');
         const hintBtn = h('button', { class: 'grow', 'data-quiet': '1', onClick: giveHint });
-        function hintCard(i) {
-          const core = p.cores.find(c => c.i === i).core;
+        const cardLine = c => { const d = A.describe(p, c); return h('p', { class: 'muted' }, `${d.icon} ${c.by != null ? name(c.by) + '의 증언: ' : d.title + ': '}${d.text}`); };
+        // 남은 힌트: 전설에서는 "이 시각은 아니다"가 먼저, 그다음 "이 사람은 결백"
+        function pendingHints() {
+          const times = p.timeCores.filter(tc => !outTimes.has(tc.t)).map(tc => ({ type: 'time', t: tc.t }));
+          const people = p.cores.filter(c => !locked.has(c.i)).sort((a, b) => a.core.length - b.core.length).map(c => ({ type: 'who', i: c.i }));
+          return [...times, ...people];
+        }
+        function hintCard(item) {
+          if (item.type === 'time') {
+            const tc = p.timeCores.find(x => x.t === item.t);
+            return h('div', { class: 'card good' },
+              h('p', {}, '💡 ', h('b', {}, `범행 시각은 ${p.times[tc.t]}이 아니다.`), ' 그 시각이라면 누가 범인이어도 아래와 동시에 성립할 수 없다.'),
+              tc.witnesses.length ? h('p', { class: 'muted' }, `🚨 ${p.times[tc.t]}에 현장에 있었다고 진술한 사람: ${who(tc.witnesses)}. 범행 시각의 현장에는 범인 혼자여야 한다.`) : null,
+              tc.core.map(cardLine),
+            );
+          }
+          const core = p.cores.find(c => c.i === item.i).core;
           return h('div', { class: 'card good' },
-            h('p', {}, '💡 ', h('b', {}, `${CIRC[i]} ${name(i)}`), ` — 결백. 이 사람이 거짓말쟁이라면 ${p.times[p.tStar]}에 현장에 있었어야 하는데, 그러면 아래와 동시에 성립할 수 없다.`),
-            core.map(c => { const d = A.describe(p, c); return h('p', { class: 'muted' }, `${d.icon} ${c.by != null ? name(c.by) + '의 증언: ' : d.title + ': '}${d.text}`); }),
+            h('p', {}, '💡 ', h('b', {}, `${CIRC[item.i]} ${name(item.i)}`), ` — 결백. 이 사람이 거짓말쟁이라면 ${p.times[p.tStar]}에 현장에 있었어야 하는데, 그러면 아래와 동시에 성립할 수 없다.`),
+            core.map(cardLine),
           );
         }
         function giveHint() {
-          const left = p.cores.filter(c => !locked.has(c.i)).sort((a, b) => a.core.length - b.core.length);
-          if (!left.length) return;
-          const i = left[0].i;
-          hinted.push(i); locked.add(i); marks[i] = 1;
+          const item = pendingHints()[0];
+          if (!item) return;
+          hinted.push(item);
+          if (item.type === 'time') outTimes.add(item.t);
+          else { locked.add(item.i); marks[item.i] = 1; }
           score = Math.max(0, score - HINT_COST);
           sfx('reveal');
-          hintBox.append(hintCard(i));
+          hintBox.append(hintCard(item));
           update();
         }
-        hinted.forEach(i => hintBox.append(hintCard(i)));
+        hinted.forEach(item => hintBox.append(hintCard(item)));
 
         function focusContent() {
           if (!focus) return [h('p', { class: 'muted small-text' }, '표의 칸, 장소, 아래 카드를 누르면 여기서 진술표와 대조해 봅니다. 왼쪽 얼굴을 누르면 ✅ 결백 / ❓ 의심 표시.')];
@@ -229,7 +258,7 @@
             const pl = p.places[focus.j];
             const near = p.places.map((_, x) => x).filter(x => x !== focus.j && p.adj[focus.j][x]).map(placeLabel).join(', ');
             return [
-              h('p', {}, h('b', {}, `${pl.emoji} ${pl.name}`), pl.scene ? ` · 사건 현장. ${p.times[p.tStar]}에 여기 있던 한 사람이 범인.` : ''),
+              h('p', {}, h('b', {}, `${pl.emoji} ${pl.name}`), !pl.scene ? '' : timeOpen() ? ' · 사건 현장. 범행 시각에 여기 혼자 있던 사람이 범인.' : ` · 사건 현장. ${p.times[p.tStar]}에 여기 있던 한 사람이 범인.`),
               h('p', { class: 'muted small-text' }, `이어진 곳: ${near}`),
             ];
           }
@@ -267,7 +296,9 @@
             el.classList.toggle('hl2', soft.has(key) && !hot.has(key));
             el.classList.toggle('col', hotTimes.size > 0 && !hotTimes.has(t));
           }));
-          timeEls.forEach((el, t) => el.classList.toggle('on', hotTimes.has(t) || t === mapTime));
+          timeEls.forEach((el, t) => { el.classList.toggle('on', hotTimes.has(t) || t === mapTime); el.classList.toggle('out', outTimes.has(t)); });
+          headline.textContent = !p.hidden ? `🕰 범행 ${p.times[p.tStar]}`
+            : timeOpen() ? `🕰 범행 ❔ ${windowText()}` : `🕰 범행 ${p.times[p.tStar]} ✔`;
           rowEls.forEach((el, i) => el.classList.toggle('cleared', marks[i] === 1));
           markEls.forEach((el, i) => { el.textContent = marks[i] === 1 ? '✅' : marks[i] === 2 ? '❓' : ''; });
           legendEls.forEach((el, j) => el.classList.toggle('active', !!focus && focus.type === 'place' && focus.j === j));
@@ -278,7 +309,7 @@
           chipEls.forEach((el, t) => el.classList.toggle('active', t === mapTime));
           map.setTime(p.claims, mapTime, false);
           // 버튼
-          const left = p.cores.filter(c => !locked.has(c.i)).length;
+          const left = pendingHints().length;
           hintBtn.textContent = left ? `💡 힌트 (-${HINT_COST})` : '💡 남은 한 명이 범인';
           hintBtn.disabled = !left;
         }
@@ -286,9 +317,9 @@
         render(root,
           h('div', { class: 'row' },
             h('div', { class: 'grow' },
-              h('b', {}, `🕰 범행 ${p.times[p.tStar]}`), h('span', { class: 'muted' }, ` · 현장 ${p.places[0].name}`)),
+              headline, h('span', { class: 'muted' }, ` · 현장 ${p.places[0].name}`)),
             scoreEl),
-          h('p', { class: 'muted small-text' }, `${A.LEVELS[level].label} · 한 명만 거짓말 · 기록은 항상 사실 · 이동은 이어진 곳으로 한 칸`),
+          h('p', { class: 'muted small-text' }, `${A.LEVELS[level].label} · 한 명만 거짓말 · 기록은 항상 사실 · 이동은 이어진 곳으로 한 칸${p.hidden ? ' · 범행 시각의 현장에는 범인 혼자' : ''}`),
           grid,
           h('div', { class: 'legend' }, legendEls),
           focusEl,
@@ -304,33 +335,48 @@
       }
 
       // ---------- 3. 지목 ----------
-      function accuse(picked) {
+      // 전설에서는 사람과 함께 범행 시각도 골라야 한다 (이미 아니라고 밝혀진 시각은 고를 수 없다)
+      function accuse(picked, pickedT) {
         stop();
         const pick = typeof picked === 'number' ? picked : null;
+        const open = p.hidden ? p.window.filter(t => !outTimes.has(t)) : [p.tStar];
+        const pickT = open.length === 1 ? open[0] : (typeof pickedT === 'number' ? pickedT : null);
+        const ready = pick != null && pickT != null;
         render(root,
           h('h2', {}, '🎯 거짓말쟁이는…'),
-          h('p', { class: 'muted' }, `틀리면 -${WRONG_COST}점. 기회는 ${CHANCES - wrong.length}번 남았습니다.`),
+          h('p', { class: 'muted' }, `틀리면 -${WRONG_COST}점. 기회는 ${CHANCES - misses()}번 남았습니다.`),
           h('div', { class: 'suspect-grid' }, p.suspects.map((s, i) => h('button', {
-            class: 'suspect-pick' + (pick === i ? ' active' : ''), disabled: wrong.includes(i), onClick: () => accuse(i),
+            class: 'suspect-pick' + (pick === i ? ' active' : ''), disabled: wrong.includes(i), onClick: () => accuse(i, pickT),
           }, face(i, 64), h('b', {}, `${CIRC[i]} ${s.name}`),
             h('span', { class: 'muted small-text' }, wrong.includes(i) ? '오판 — 결백' : marks[i] === 1 ? '✅ 결백 표시' : marks[i] === 2 ? '❓ 의심 표시' : ' ')))),
-          pick != null ? h('button', { class: 'danger', 'data-quiet': '1', onClick: () => verdict(pick) }, `${name(pick)} 지목 확정`) : null,
+          p.hidden ? [
+            h('h3', {}, '⏱ 범행 시각은…'),
+            h('div', { class: 'chips' }, p.window.map(t => h('button', {
+              class: 'chip' + (pickT === t ? ' active' : ''), disabled: outTimes.has(t), onClick: () => accuse(pick, t),
+            }, p.times[t]))),
+          ] : null,
+          ready ? h('button', { class: 'danger', 'data-quiet': '1', onClick: () => verdict(pick, pickT) },
+            p.hidden ? `${name(pick)} · ${p.times[pickT]} 지목 확정` : `${name(pick)} 지목 확정`) : null,
           h('button', { onClick: board }, '돌아가서 더 살펴보기'),
         );
       }
 
-      function verdict(i) {
-        if (i === p.culpritIdx) return finish(true);
-        wrong.push(i); locked.add(i); marks[i] = 1;
+      function verdict(i, t) {
+        const ci = p.culpritIdx;
+        if (i === ci && t === p.tStar) return finish(true);
         score = Math.max(0, score - WRONG_COST);
-        if (wrong.length >= CHANCES) return finish(false);
+        const rightPerson = i === ci; // 전설에서만 가능: 사람은 맞고 시각이 틀림
+        if (rightPerson) { wrongTimes.push(t); outTimes.add(t); } else { wrong.push(i); locked.add(i); marks[i] = 1; }
+        if (misses() >= CHANCES) return finish(false);
         sfx('bad');
         render(root,
           h('h2', {}, '❌ 오판'),
           h('div', { class: 'card alert center' },
             face(i, 76),
-            h('p', {}, h('b', {}, name(i)), '의 진술은 전부 사실이었습니다.'),
-            h('p', { class: 'muted' }, `-${WRONG_COST}점 · 기회 ${CHANCES - wrong.length}번 남음`)),
+            rightPerson
+              ? h('p', {}, '사람은 맞았습니다. 하지만 범행 시각은 ', h('b', {}, p.times[t]), '이 아닙니다.')
+              : h('p', {}, h('b', {}, name(i)), '의 진술은 전부 사실이었습니다.'),
+            h('p', { class: 'muted' }, `-${WRONG_COST}점 · 기회 ${CHANCES - misses()}번 남음`)),
           h('button', { class: 'primary', onClick: board }, '수사 계속'),
         );
       }
@@ -376,14 +422,22 @@
             h('div', { class: 'stamp ' + (win ? 'win' : 'lose') }, win ? '검거' : '미제'),
             face(ci, 96),
             h('h2', {}, win ? '알리바이가 무너졌다' : '수사 실패'),
-            h('p', {}, h('b', {}, `${CIRC[ci]} ${name(ci)}`), '의 진술이 거짓이었습니다.'),
+            h('p', {}, h('b', {}, `${CIRC[ci]} ${name(ci)}`), '의 진술이 거짓이었습니다.', p.hidden ? ` 범행 시각은 ${p.times[p.tStar]}.` : ''),
             p.lieSlots.map(t => h('p', { class: 'muted' }, `${p.times[t]}: "${p.places[p.claims[ci][t]].name}"에 있었다고 했지만 사실은 ${p.places[p.truth[ci][t]].name}${p.truth[ci][t] === 0 ? '(현장)' : ''}.`)),
-            h('p', {}, win ? `${'⭐'.repeat(stars(final))} ${final}점` : '0점', h('span', { class: 'muted' }, ` · ${A.LEVELS[level].label} · 힌트 ${hinted.length} · 오판 ${wrong.length}`)),
+            h('p', {}, win ? `${'⭐'.repeat(stars(final))} ${final}점` : '0점', h('span', { class: 'muted' }, ` · ${A.LEVELS[level].label} · 힌트 ${hinted.length} · 오판 ${misses()}`)),
           ),
           h('h3', {}, '🎞 재연 — 그날 실제로 있었던 일'),
           h('div', { class: 'chips' }, h('button', { class: 'chip', 'data-quiet': '1', onClick: play }, '▶ 재생'), chipEls),
           h('div', { class: 'amap-wrap' }, map.el),
           caption,
+          p.hidden ? [
+            h('h3', {}, `⏱ 해설 — 왜 ${p.times[p.tStar]}인가`),
+            p.timeCores.map(tc => h('div', { class: 'card explain' },
+              h('div', { class: 'grow' },
+                h('p', {}, h('b', {}, `${p.times[tc.t]}은 아니다`), ' — 그 시각이 범행 시각이라면 누가 범인이어도 아래와 함께 성립할 수 없다.'),
+                tc.witnesses.length ? h('p', { class: 'muted small-text' }, `🚨 ${p.times[tc.t]}에 현장에 있었다고 진술한 사람: ${who(tc.witnesses)}. 범행 시각의 현장에는 범인 혼자여야 한다.`) : null,
+                tc.core.map(c => { const d = A.describe(p, c); return h('p', { class: 'muted small-text' }, `${d.icon} ${c.by != null ? name(c.by) + '의 증언: ' : d.title + ': '}${d.text}`); })))),
+          ] : null,
           h('h3', {}, '🧠 해설 — 나머지는 왜 결백한가'),
           p.cores.map(co => h('div', { class: 'card explain' },
             face(co.i, 40),
@@ -391,7 +445,7 @@
               h('p', {}, h('b', {}, `${CIRC[co.i]} ${name(co.i)}`), ` — 거짓말쟁이라면 ${p.times[p.tStar]}에 현장에 있었어야 한다. 그러면 아래${co.core.length > 1 ? ' 둘 이상' : ''}과 함께 성립할 수 없다.`),
               co.core.map(c => { const d = A.describe(p, c); return h('p', { class: 'muted small-text' }, `${d.icon} ${c.by != null ? name(c.by) + '의 증언: ' : d.title + ': '}${d.text}`); })))),
           h('button', { class: 'primary', onClick: () => { variant++; store.set('alibi:v:' + C.id, variant); begin(); } }, '🔁 같은 사건, 새 타임라인'),
-          level < 2 ? h('button', { onClick: () => { level++; store.set('alibi:level', level); begin(); } }, `⬆ 난이도 올리기 (${A.LEVELS[level + 1].label})`) : null,
+          level < TOP ? h('button', { onClick: () => { level++; store.set('alibi:level', level); begin(); } }, `⬆ 난이도 올리기 (${A.LEVELS[level + 1].label})`) : null,
           h('button', { onClick: () => DO.goHome() }, '처음으로'),
         );
         setTimeout(() => { if (map.el.isConnected) play(); }, 900);

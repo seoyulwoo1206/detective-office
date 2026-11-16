@@ -21,7 +21,9 @@
     { id: 0, label: '입문', suspects: 4, desc: '용의자 4명. 증거 하나만 제대로 읽어도 한 사람씩 지울 수 있다.' },
     { id: 1, label: '보통', suspects: 5, desc: '용의자 5명. 증거 두 개를 엮어야 지워지는 사람이 있다.' },
     { id: 2, label: '어려움', suspects: 6, desc: '용의자 6명. 대놓고 틀린 증거는 없다. 여러 장을 조합해야 한다.' },
+    { id: 3, label: '전설', suspects: 6, desc: '범행 시각을 모른다. 세 시각 중 언제인지, 그리고 누구인지를 함께 맞혀야 한다.' },
   ];
+  const LAST = LEVELS.length - 1;
 
   const POOLS = {
     '학교·학원': [['🏫', '교실'], ['📚', '도서관'], ['🍜', '매점'], ['⚽', '운동장'], ['🚻', '화장실'], ['📝', '교무실'], ['🎨', '미술실'], ['🧪', '과학실']],
@@ -89,12 +91,13 @@
     return true;
   }
 
-  // i 가 거짓말쟁이일 수 있는가. 가능하면 그때의 i 경로를, 아니면 null.
-  function feasible(p, i, cons) {
+  // "범행 시각이 t 이고 i 가 거짓말쟁이"일 수 있는가. 가능하면 그때의 i 경로를, 아니면 null.
+  // 범행 시각에 현장에는 범인 한 명뿐이므로, i 말고 누가 그 시각 현장이라고 진술했으면 불가능.
+  function feasible(p, i, cons, t = p.tStar) {
+    for (let j = 0; j < p.claims.length; j++) if (j !== i && p.claims[j][t] === 0) return null;
     const paths = p.claims.slice();
     const active = cons.filter(c => c.by !== i);
-    // i 를 뺀 나머지 진술만으로 이미 깨지는 제약이 있으면 빨리 끝낸다 (i 와 무관한 제약)
-    for (const w of p.sceneWalks) {
+    for (const w of p.walksAt[t]) {
       paths[i] = w;
       let ok = true;
       for (const c of active) if (!holds(c, paths)) { ok = false; break; }
@@ -103,23 +106,36 @@
     return null;
   }
 
-  function solve(p, cons) {
+  // 가능한 (용의자, 범행 시각) 쌍 전부. 시각이 공개된 난이도에서는 p.window 가 [tStar] 하나뿐이다.
+  function solvePairs(p, cons) {
     const all = cons || [...p.testimonies, ...p.evidence];
     const out = [];
-    for (let i = 0; i < p.suspects.length; i++) if (feasible(p, i, all)) out.push(i);
+    for (const t of p.window) for (let i = 0; i < p.suspects.length; i++) if (feasible(p, i, all, t)) out.push([i, t]);
     return out;
+  }
+  function solve(p, cons) {
+    return [...new Set(solvePairs(p, cons).map(x => x[0]))];
   }
 
   // i 를 지우는 데 필요한 가장 작은 제약 묶음 (1~3장은 전수, 그 이상은 하나씩 빼 보기)
-  function minCore(p, i, all) {
+  function minCore(p, i, all, t = p.tStar) {
     const n = all.length;
-    for (let a = 0; a < n; a++) if (!feasible(p, i, [all[a]])) return [all[a]];
-    for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) if (!feasible(p, i, [all[a], all[b]])) return [all[a], all[b]];
+    if (!feasible(p, i, [], t)) return [];
+    for (let a = 0; a < n; a++) if (!feasible(p, i, [all[a]], t)) return [all[a]];
+    for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) if (!feasible(p, i, [all[a], all[b]], t)) return [all[a], all[b]];
     for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) for (let c = b + 1; c < n; c++) {
-      if (!feasible(p, i, [all[a], all[b], all[c]])) return [all[a], all[b], all[c]];
+      if (!feasible(p, i, [all[a], all[b], all[c]], t)) return [all[a], all[b], all[c]];
     }
     let core = all.slice();
-    for (const c of all) { const rest = core.filter(x => x !== c); if (!feasible(p, i, rest)) core = rest; }
+    for (const c of all) { const rest = core.filter(x => x !== c); if (!feasible(p, i, rest, t)) core = rest; }
+    return core;
+  }
+
+  // "범행 시각이 t 일 수 없다"를 보이는 제약 묶음 (그 시각엔 누구도 범인이 될 수 없음). 하나씩 빼 보며 줄인다.
+  function timeCore(p, t, all) {
+    const dead = cons => p.suspects.every((_, i) => !feasible(p, i, cons, t));
+    let core = all.slice();
+    for (const c of all) { const rest = core.filter(x => x !== c); if (dead(rest)) core = rest; }
     return core;
   }
 
@@ -183,7 +199,15 @@
     })([]);
 
     const tStar = [2, 2, 3, 1][Math.floor(rnd() * 4)];
-    const sceneWalks = walks.filter(w => w[tStar] === 0);
+    const walksAt = Array.from({ length: T }, (_, t) => walks.filter(w => w[t] === 0));
+    const sceneWalks = walksAt[tStar];
+    // 전설: 범행 시각을 숨기고 "연속한 세 칸 중 하나"라고만 알려 준다
+    const hidden = level === 3;
+    let window = [tStar];
+    if (hidden) {
+      const start = Math.max(0, Math.min(T - 3, tStar - Math.floor(rnd() * 3)));
+      window = [start, start + 1, start + 2];
+    }
 
     // 진짜 동선
     const truth = [];
@@ -217,9 +241,9 @@
         for (let t = 0; t < T; t++) {
           const Lc = truth[s][t];
           const others = []; for (let x = 0; x < K; x++) if (x !== s && truth[x][t] === Lc) others.push(x);
-          if (!others.length) cand.push({ c: { k: 'alone', by: s, t, L: Lc }, w: near(t) * (claims[ci][t] === Lc ? [6, 3, 1.5][level] : 0.6) });
+          if (!others.length) cand.push({ c: { k: 'alone', by: s, t, L: Lc }, w: near(t) * (claims[ci][t] === Lc ? [6, 3, 1.5, 1.5][level] : 0.6) });
           for (const x of others) cand.push({ c: { k: 'saw', by: s, who: x, t, L: Lc }, w: near(t) });
-          if (claims[ci][t] === Lc && truth[ci][t] !== Lc) cand.push({ c: { k: 'notsaw', by: s, who: ci, t, L: Lc }, w: near(t) * [6, 3, 1.5][level] });
+          if (claims[ci][t] === Lc && truth[ci][t] !== Lc) cand.push({ c: { k: 'notsaw', by: s, who: ci, t, L: Lc }, w: near(t) * [6, 3, 1.5, 1.5][level] });
         }
       } else {
         for (let t = 0; t < T; t++) {
@@ -233,12 +257,12 @@
       if (cand.length) testimonies.push(pickW(cand, x => x.w, rnd).c);
     }
     // 어려움에서는 절반만 입을 연다 (누가 말했는지는 단서가 되지 않게 무작위)
-    if (level === 2) {
+    if (level >= 2) {
       const keep = new Set(shuffle(testimonies.map(c => c.by), rnd).slice(0, Math.ceil(K / 2)));
       for (let n = testimonies.length - 1; n >= 0; n--) if (!keep.has(testimonies[n].by)) testimonies.splice(n, 1);
     }
 
-    const p = { T, P, tStar, places, edges, adj, suspects, culpritIdx: ci, claims, truth, lieSlots, sceneWalks, testimonies, evidence: [] };
+    const p = { T, P, tStar, window, hidden, places, edges, adj, suspects, culpritIdx: ci, claims, truth, lieSlots, walksAt, testimonies, evidence: [] };
 
     // 증거 후보 (전부 사실)
     let pool2 = [];
@@ -264,33 +288,38 @@
     // "대놓고 틀린" 카드: 진술표와 어긋나고, 그 어긋남을 설명할 수 있는 사람이 범인뿐인 카드
     const isDirect = card => {
       if (holds(card, claims)) return false;
-      for (let i = 0; i < K; i++) if (i !== ci && feasible(p, i, [card])) return false;
+      for (let i = 0; i < K; i++) if (i !== ci) for (const t of window) if (feasible(p, i, [card], t)) return false;
       return true;
     };
-    if (level === 2) pool2 = pool2.filter(c => !isDirect(c));
+    if (level >= 2) pool2 = pool2.filter(c => !isDirect(c));
     pool2 = shuffle(pool2, rnd);
 
-    // 탐욕 선택: 남은 후보를 가장 많이 지우는 카드부터
+    // 지워야 할 오답: (용의자, 범행 시각) 쌍 가운데 정답만 뺀 전부
     const innocents = []; for (let i = 0; i < K; i++) if (i !== ci) innocents.push(i);
+    const wrong = [];
+    for (const t of window) for (let i = 0; i < K; i++) if (!(i === ci && t === tStar)) wrong.push([i, t]);
+    const alive = cons => wrong.filter(([i, t]) => feasible(p, i, cons, t));
+
+    // 탐욕 선택: 남은 오답을 지우는 카드를 하나씩 고른다
     const chosen = [];
-    let remaining = innocents.filter(i => feasible(p, i, testimonies));
+    let remaining = alive(testimonies);
     let guard = 0;
-    while (remaining.length && guard++ < 12) {
-      // 카드마다 "남은 후보를 몇 명 지우는가"를 센다
+    while (remaining.length && guard++ < 16) {
+      // 카드마다 "남은 오답을 몇 개 지우는가"를 센다
       const byN = {};
       for (const card of pool2) {
         if (chosen.includes(card)) continue;
         const cons = [...testimonies, ...chosen, card];
-        let n = 0; for (const i of remaining) if (!feasible(p, i, cons)) n++;
+        let n = 0; for (const [i, t] of remaining) if (!feasible(p, i, cons, t)) n++;
         if (n > 0) (byN[n] = byN[n] || []).push(card);
       }
       const ns = Object.keys(byN).map(Number).sort((a, b) => a - b);
       if (!ns.length) return null;
-      // 입문은 가장 많이 지우는 카드, 어려움은 가장 조금 지우는 카드(→ 여러 장을 엮어야 함), 보통은 섞어서
-      const n = level === 0 ? ns[ns.length - 1] : level === 2 ? ns[0] : ns[Math.floor(rnd() * ns.length)];
+      // 입문은 가장 많이 지우는 카드, 어려움 이상은 가장 조금 지우는 카드(→ 여러 장을 엮어야 함), 보통은 섞어서
+      const n = level === 0 ? ns[ns.length - 1] : level >= 2 ? ns[0] : ns[Math.floor(rnd() * ns.length)];
       const cardsN = byN[n];
       chosen.push(cardsN[Math.floor(rnd() * cardsN.length)]);
-      remaining = remaining.filter(i => feasible(p, i, [...testimonies, ...chosen]));
+      remaining = remaining.filter(([i, t]) => feasible(p, i, [...testimonies, ...chosen], t));
     }
     if (remaining.length) return null;
 
@@ -298,40 +327,47 @@
     let evidence = chosen.slice();
     for (const card of shuffle(chosen, rnd)) {
       const rest = evidence.filter(c => c !== card);
-      if (innocents.every(i => !feasible(p, i, [...testimonies, ...rest]))) evidence = rest;
+      if (!alive([...testimonies, ...rest]).length) evidence = rest;
     }
     const needed = evidence.length;
     // 사실이지만 결정적이지 않은 카드 (진술표와 어긋나지 않는 것만)
-    const noise = pool2.filter(c => !evidence.includes(c) && holds(c, claims) && !(c.k === 'flow' && c.n === 0)).slice(0, [1, 2, 2][level]);
+    const noise = pool2.filter(c => !evidence.includes(c) && holds(c, claims) && !(c.k === 'flow' && c.n === 0)).slice(0, [1, 2, 2, 2][level]);
     p.evidence = shuffle([...evidence, ...noise], rnd);
 
-    // 난이도 측정
+    // 난이도 측정 + 해설 재료
     const allCons = [...testimonies, ...p.evidence];
     const cores = innocents.map(i => ({ i, core: minCore(p, i, allCons) }));
+    // 전설: 범행 시각이 아닌 칸마다 "왜 그 시각일 수 없는가". witnesses = 그 시각 현장에 있었다고 한 사람.
+    const timeCores = window.filter(t => t !== tStar).map(t => ({
+      t, core: timeCore(p, t, allCons), witnesses: innocents.filter(i => claims[i][t] === 0),
+    }));
     const sizes = cores.map(c => c.core.length);
     const maxCore = Math.max(...sizes);
     const direct = p.evidence.some(isDirect);
-    // 난이도 조건: 입문은 한 장씩으로 다 지워지고, 보통은 두 장 조합이 한 번 이상, 어려움은 거의 전원이 조합을 요구한다
+    // 난이도 조건: 입문은 한 장씩으로 다 지워지고, 보통은 두 장 조합이 한 번 이상, 어려움은 거의 전원이 조합을 요구한다.
+    // 전설은 거기에 더해 시각을 한 장으로 바로 알 수 없어야 한다(틀린 시각 중 하나는 두 장 이상을 엮어야 지워짐).
     const hardOnes = sizes.filter(s => s >= 2).length;
     const ok = level === 0 ? (maxCore <= 1 && needed >= 1)
       : level === 1 ? (maxCore === 2 && needed >= 2)
-      : (maxCore >= 2 && hardOnes >= K - 3 && needed >= 3 && !direct);
-    const score = maxCore * 10 + sizes.reduce((a, b) => a + b, 0) + needed * 5 - (direct ? 20 : 0);
+      : level === 2 ? (maxCore >= 2 && hardOnes >= K - 3 && needed >= 3 && !direct)
+      : (maxCore >= 2 && needed >= 3 && needed <= 7 && !direct && timeCores.some(tc => tc.core.length >= 2));
+    const score = maxCore * 10 + sizes.reduce((a, b) => a + b, 0) + needed * 5 - (direct ? 20 : 0)
+      + timeCores.reduce((a, tc) => a + tc.core.length, 0) * 3;
 
-    p.cores = cores; p.depth = maxCore; p.needed = needed; p.ok = ok; p.score = score;
+    p.cores = cores; p.timeCores = timeCores; p.depth = maxCore; p.needed = needed; p.ok = ok; p.score = score;
     return p;
   }
 
   // ---------- 공개 API ----------
   // 같은 (사건, 난이도, 판 번호) → 항상 같은 퍼즐
   function generate(C, level = 1, variant = 0) {
-    level = Math.max(0, Math.min(2, level | 0));
+    level = Math.max(0, Math.min(LAST, level | 0));
     let fallback = null;
     for (let n = 0; n < 160; n++) {
       const rnd = rng(hashString(`alibi:${C.id}:${level}:${variant}:${n}`));
       const p = attempt(C, level, rnd);
       if (!p) continue;
-      if (solve(p).length !== 1) continue; // 유일해가 아니면 버린다 (있어선 안 되지만 안전망)
+      if (solvePairs(p).length !== 1) continue; // 유일해가 아니면 버린다 (있어선 안 되지만 안전망)
       if (p.ok) { fallback = p; break; }
       // 난이도 조건을 못 맞추면 가장 가까운 것을 기억해 둔다
       if (!fallback || (level === 0 ? p.score < fallback.score : p.score > fallback.score)) fallback = p;
@@ -339,10 +375,13 @@
     if (!fallback) return null;
     const p = fallback;
     const base = baseMinutes(C);
-    p.times = Array.from({ length: T }, (_, t) => fmtTime(base + (t - p.tStar) * 10 + 24 * 60));
+    // 시각 표시: 보통은 범행 칸이 사건 소개의 "N시"가 되게 맞춘다.
+    // 전설은 후보 세 칸의 가운데를 그 시각에 맞춰, 소개 글만으로는 범행 칸을 알 수 없게 한다.
+    const anchor = p.hidden ? p.window[1] : p.tStar;
+    p.times = Array.from({ length: T }, (_, t) => fmtTime(base + (t - anchor) * 10 + 24 * 60));
     p.caseId = C.id; p.level = level; p.variant = variant;
     return p;
   }
 
-  DO.alibi = { T, P, LEVELS, generate, solve, feasible, holds, describe, cells, josa, ro };
+  DO.alibi = { T, P, LEVELS, generate, solve, solvePairs, feasible, holds, describe, cells, josa, ro };
 })();

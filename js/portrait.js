@@ -5,7 +5,7 @@
 
 (() => {
   const { rng, hashString } = DO;
-  const INK = '#2b2419';
+  const INK = '#25283a';
   const SKIN = ['#f6d7b8', '#f0c8a0', '#e8b98f', '#d9a377', '#fbe3cc'];
   const HAIR = ['#2a2320', '#3b2a1e', '#5a3a24', '#1d1d24', '#6b4a2f'];
   const GRAY = ['#b9b4ab', '#d6d1c7', '#9c978e'];

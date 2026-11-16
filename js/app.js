@@ -25,16 +25,41 @@
     return h('div', { class: 'badges' }, list.map(b => h('span', { class: 'badge' + (b === 'API 키 필요' ? ' key' : b === 'NEW' ? ' new' : '') }, b)));
   }
 
+  // 홈 카드의 아이콘 타일. 모드를 추가하면 여기에도 한 줄.
+  const ICONS = { fold: '✋', forehead: '🤔', 'blind-fold': '🙈', alibi: '🧩', 'ai-interrogation': '🤖', daily: '📅', escape: '🔦' };
+
   function modeCard(m) {
     const meta = DO.modeMeta ? DO.modeMeta(m.id) : {};
     return h('div', { class: 'mode-card' + (meta.type ? ' type-' + meta.type : '') },
-      h('h3', {}, m.name + (m.ready ? '' : ' (준비 중)')),
-      badges(meta),
+      h('div', { class: 'mode-top' },
+        h('div', { class: 'mode-icon' }, ICONS[m.id] || '🗂'),
+        h('div', { class: 'grow' },
+          h('h3', {}, m.name + (m.ready ? '' : ' (준비 중)')),
+          badges(meta))),
       h('p', { class: 'muted' }, m.desc),
       h('div', { class: 'row' },
         h('button', { class: 'small', onClick: () => DO.openGuide && DO.openGuide(m.id) }, '❓ 설명'),
         h('button', { class: 'grow primary', disabled: !m.ready, onClick: () => startMode(m) }, '시작'),
       ),
+    );
+  }
+
+  // 홈 맨 위의 코르크 수사 보드: 수록 사건의 용의자 셋을 폴라로이드로 꽂고 붉은 실로 잇는다.
+  // 누구를 꽂을지는 날짜로 정해서 매일 바뀐다. 폴라로이드의 가운데(핀)가 left % 에 오므로 실의 좌표와 맞는다.
+  function heroBoard() {
+    const all = listCases().flatMap(c => c.suspects.map(s => ({ c, s })));
+    const picks = all.length >= 3 && DO.face ? DO.shuffle(all, DO.rng(DO.hashString('board:' + new Date().toDateString()))).slice(0, 3) : [];
+    const spots = [[17, 16, -6], [45, 27, 4], [73, 12, -3]];
+    const string = DO.svg ? DO.svg('svg', { class: 'board-string', viewBox: '0 0 100 100', preserveAspectRatio: 'none' },
+      DO.svg('path', { d: 'M17,9 Q31,24 45,15 Q60,3 73,7 Q85,28 87,66' })) : null;
+    return h('div', { class: 'board' },
+      picks.length ? string : null,
+      picks.map(({ c, s }, i) => h('div', {
+        class: 'polaroid',
+        style: `left:${spots[i][0]}%; top:${spots[i][1]}px; margin-left:-37px; transform:rotate(${spots[i][2]}deg); transform-origin:50% 0;`,
+      }, DO.face(c, s, 60), h('span', { class: 'cap' }, s.name))),
+      h('div', { class: 'board-stamp' }, 'TOP SECRET'),
+      h('div', { class: 'sticky' }, '범인은', h('br'), '이 안에 있다!'),
     );
   }
 
@@ -54,11 +79,14 @@
 
     render(root,
       h('div', { class: 'card hero' },
-        h('h3', {}, '👋 처음이세요?'),
-        h('p', { class: 'muted' }, '폰 하나를 돌려가며 하는 추리 파티 게임 모음입니다. 사건 하나에 용의자 여러 명, 그중 한 명이 거짓말쟁이 범인. 혼자라면 논리로 푸는 "알리바이 깨기"부터.'),
-        h('div', { class: 'row' },
-          h('button', { class: 'grow', onClick: () => DO.openAppGuide && DO.openAppGuide() }, '📖 게임 소개'),
-          starter ? h('button', { class: 'grow primary', onClick: () => startMode(starter) }, '🚀 바로 시작') : null,
+        heroBoard(),
+        h('div', { class: 'hero-body' },
+          h('h3', {}, '👋 처음이세요?'),
+          h('p', { class: 'muted' }, '폰 하나를 돌려가며 하는 추리 파티 게임 모음입니다. 사건 하나에 용의자 여러 명, 그중 한 명이 거짓말쟁이 범인. 혼자라면 논리로 푸는 "알리바이 깨기"부터.'),
+          h('div', { class: 'row' },
+            h('button', { class: 'grow', onClick: () => DO.openAppGuide && DO.openAppGuide() }, '📖 게임 소개'),
+            starter ? h('button', { class: 'grow primary', onClick: () => startMode(starter) }, '🚀 바로 시작') : null,
+          ),
         ),
       ),
       sections,
