@@ -206,7 +206,7 @@
         if (item.kind === 'statement') {
           const s = item.suspect;
           return [
-            h('h2', {}, `📝 ${s.name}의 진술서`),
+            h('div', { class: 'profile-head' }, DO.face(C, s, 52), h('h2', {}, `📝 ${s.name}의 진술서`)),
             h('div', { class: 'card statement' },
               C.conditions.map(c => {
                 const yes = claims(s, c.tag);
@@ -372,8 +372,9 @@
               : h('p', { class: 'muted' }, '(기록 없음)'),
           ),
           h('h3', {}, '전원 프로필'),
-          C.suspects.map(s => h('div', { class: 'card' + (s === culprit ? ' alert' : '') },
-            h('b', {}, s.name), h('p', { class: 'muted' }, s.profile))),
+          C.suspects.map(s => h('div', { class: 'card explain' + (s === culprit ? ' alert' : '') },
+            DO.face(C, s, 44),
+            h('div', { class: 'grow' }, h('b', {}, s.name), h('p', { class: 'muted' }, s.profile)))),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
       }

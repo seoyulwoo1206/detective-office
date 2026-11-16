@@ -16,13 +16,13 @@
   const SECTIONS = [
     { type: 'party', title: '👥 친구들과 · 폰 하나로 돌려가며' },
     { type: 'coop', title: '🤝 다 같이 한 화면으로 (혼자도 OK)' },
-    { type: 'solo', title: '🧍 혼자서' },
+    { type: 'solo', title: '🧠 혼자서 · 또는 머리를 맞대고' },
     { type: 'daily', title: '📅 매일 새 사건' },
   ];
 
   function badges(meta) {
-    const list = [meta.players, meta.time, meta.level, meta.needsKey ? 'API 키 필요' : null].filter(Boolean);
-    return h('div', { class: 'badges' }, list.map(b => h('span', { class: 'badge' + (b === 'API 키 필요' ? ' key' : '') }, b)));
+    const list = [meta.isNew ? 'NEW' : null, meta.players, meta.time, meta.level, meta.needsKey ? 'API 키 필요' : null].filter(Boolean);
+    return h('div', { class: 'badges' }, list.map(b => h('span', { class: 'badge' + (b === 'API 키 필요' ? ' key' : b === 'NEW' ? ' new' : '') }, b)));
   }
 
   function modeCard(m) {
@@ -55,7 +55,7 @@
     render(root,
       h('div', { class: 'card hero' },
         h('h3', {}, '👋 처음이세요?'),
-        h('p', { class: 'muted' }, '폰 하나를 돌려가며 하는 추리 파티 게임 모음입니다. 사건 하나에 용의자 여러 명, 그중 한 명이 거짓말쟁이 범인.'),
+        h('p', { class: 'muted' }, '폰 하나를 돌려가며 하는 추리 파티 게임 모음입니다. 사건 하나에 용의자 여러 명, 그중 한 명이 거짓말쟁이 범인. 혼자라면 논리로 푸는 "알리바이 깨기"부터.'),
         h('div', { class: 'row' },
           h('button', { class: 'grow', onClick: () => DO.openAppGuide && DO.openAppGuide() }, '📖 게임 소개'),
           starter ? h('button', { class: 'grow primary', onClick: () => startMode(starter) }, '🚀 바로 시작') : null,

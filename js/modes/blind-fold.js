@@ -70,7 +70,7 @@
         render(root,
           h('p', { class: 'muted center' }, `${p.name}님의 용의자 (본인은 보지 마세요)`),
           h('div', { class: 'card secret role-card' },
-            h('div', { class: 'big' }, '🕵️'),
+            DO.face(C, p.suspect, 88),
             h('div', { class: 'role' }, p.suspect.name),
             h('p', {}, p.suspect.profile),
           ),

@@ -85,6 +85,7 @@
           h('div', { class: 'card secret role-card' },
             h('div', { class: 'big' }, R.emoji),
             h('div', { class: 'role' }, R.name),
+            DO.face(C, p.suspect, 72),
             h('div', { class: 'who' }, p.suspect.name),
             h('p', { class: 'muted' }, R.desc),
           ),

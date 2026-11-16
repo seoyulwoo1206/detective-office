@@ -49,7 +49,7 @@
         const p = players[i];
         handOff(root, p.name, '다른 사람이 화면을 못 보게 하고 확인하세요.', () => {
           const shown = h('div', { class: 'card secret', hidden: true },
-            h('h2', {}, p.suspect.name),
+            h('div', { class: 'profile-head' }, DO.face(C, p.suspect, 64), h('h2', {}, p.suspect.name)),
             h('p', {}, p.suspect.profile),
             p.suspect.lies.length
               ? h('p', { class: 'muted' }, '거짓말해도 되는 조건: ' + p.suspect.lies.map(t => tagText(C, t)).join(' / '))
@@ -185,8 +185,9 @@
             ? h('p', { class: 'muted' }, '공개되지 않은 단서: ' + C.clues.filter(c => !revealedClues.includes(c)).map(c => c.text).join(' · '))
             : null,
           h('h2', {}, '전원 프로필'),
-          players.map(p => h('div', { class: 'card' + (p === culprit ? ' alert' : '') },
-            h('b', {}, `${p.name} — ${p.suspect.name}`), h('p', { class: 'muted' }, p.suspect.profile))),
+          players.map(p => h('div', { class: 'card explain' + (p === culprit ? ' alert' : '') },
+            DO.face(C, p.suspect, 44),
+            h('div', { class: 'grow' }, h('b', {}, `${p.name} — ${p.suspect.name}`), h('p', { class: 'muted' }, p.suspect.profile)))),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
       }
