@@ -166,9 +166,10 @@ ${known}
     ready: true,
     start(root, ctx) {
       const C = ctx.case;
+      const savedModel = store.get('model', MODELS[0].id);
       const settings = {
         apiKey: store.get('apiKey', ''),
-        model: store.get('model', MODELS[0].id),
+        model: MODELS.some(m => m.id === savedModel) ? savedModel : MODELS[0].id,
       };
       // 질문 예산(난이도). 소개 화면에서 바꿀 수 있고 다음 판에도 기억된다.
       let QUESTION_BUDGET = BUDGETS.some(b => b.n === store.get('budget')) ? store.get('budget') : 15;
@@ -187,28 +188,42 @@ ${known}
       function save() {
         store.set(SAVE_KEY, { chats, used, revealed: revealedClues.map(c => c.id), budget: QUESTION_BUDGET, at: Date.now() });
       }
+      // 저장된 기록 읽기. 모양이 이상하면(예전 버전, 깨진 값) 없는 것으로 친다.
+      const isObj = x => x != null && typeof x === 'object' && !Array.isArray(x);
+      const cleanChat = arr => (Array.isArray(arr) ? arr.filter(m => isObj(m) && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string') : []);
+      const when = at => (typeof at === 'number' && Number.isFinite(at) ? new Date(at).toLocaleString('ko') : '날짜 모름');
+      function loadSaved() {
+        const r = store.get(SAVE_KEY, {});
+        return typeof r.used === 'number' && r.used > 0 && isObj(r.chats) ? r : null;
+      }
+      function loadDone() {
+        const r = store.get(DONE_KEY, {});
+        return typeof r.win === 'boolean' && typeof r.target === 'string' && isObj(r.chats) ? r : null;
+      }
       function restore(saved) {
-        for (const s of C.suspects) chats[s.id] = (saved.chats && saved.chats[s.id]) || [];
+        for (const s of C.suspects) chats[s.id] = cleanChat(saved.chats[s.id]);
         revealedClues.length = 0; remainingClues.length = 0;
-        for (const c of C.clues) ((saved.revealed || []).includes(c.id) ? revealedClues : remainingClues).push(c);
-        used = saved.used || 0;
+        const rev = Array.isArray(saved.revealed) ? saved.revealed : [];
+        for (const c of C.clues) (rev.includes(c.id) ? revealedClues : remainingClues).push(c);
+        used = Math.max(0, Math.floor(saved.used));
         if (BUDGETS.some(b => b.n === saved.budget)) QUESTION_BUDGET = saved.budget;
         current = C.suspects[0];
       }
       function transcript(chatsObj) {
-        const any = C.suspects.some(s => (chatsObj[s.id] || []).length);
+        const list = s => cleanChat(chatsObj[s.id]);
+        const any = C.suspects.some(s => list(s).length);
         if (!any) return h('p', { class: 'muted' }, '질문한 적이 없습니다.');
-        return C.suspects.map(s => (chatsObj[s.id] || []).length ? h('div', { class: 'card' },
+        return C.suspects.map(s => list(s).length ? h('div', { class: 'card' },
           h('b', {}, s.name),
-          chatsObj[s.id].map(m => h('p', { class: m.role === 'user' ? '' : 'muted' }, (m.role === 'user' ? '🔎 ' : '💬 ') + m.text)),
+          list(s).map(m => h('p', { class: m.role === 'user' ? '' : 'muted' }, (m.role === 'user' ? '🔎 ' : '💬 ') + m.text)),
         ) : null);
       }
       function recordScreen(rec) {
         render(root,
           h('h2', {}, '📜 지난 심문 기록'),
           h('div', { class: 'card ' + (rec.win ? 'good' : 'alert') },
-            h('p', {}, `${new Date(rec.at).toLocaleString('ko')} · ${rec.win ? '사건 해결' : '오답'} · 질문 ${rec.used}개 · 지목: ${rec.target}`)),
-          transcript(rec.chats || {}),
+            h('p', {}, `${when(rec.at)} · ${rec.win ? '사건 해결' : '오답'}${typeof rec.used === 'number' ? ` · 질문 ${rec.used}개` : ''} · 지목: ${rec.target}`)),
+          transcript(rec.chats),
           h('button', { class: 'primary', onClick: intro }, '돌아가기'),
         );
       }
@@ -232,7 +247,7 @@ ${known}
           ),
           h('button', { class: 'primary', onClick: () => {
             const k = keyInput.value.trim();
-            if (!k) return alert('API 키를 입력하세요.');
+            if (!k) return DO.toast('API 키를 입력하세요.');
             settings.apiKey = k; settings.model = modelSel.value;
             store.set('apiKey', k); store.set('model', modelSel.value);
             intro();
@@ -246,13 +261,13 @@ ${known}
 
       // ---------- 사건 소개 ----------
       function intro() {
-        const saved = store.get(SAVE_KEY);
-        const done = store.get(DONE_KEY);
+        const saved = loadSaved();
+        const done = loadDone();
         render(root,
           h('h2', {}, C.title),
           h('div', { class: 'card' }, h('p', {}, C.intro)),
-          saved && saved.used > 0 ? h('div', { class: 'card good' },
-            h('p', {}, h('b', {}, '진행 중인 심문이 있습니다.'), ` 질문 ${saved.used}개 사용 · ${new Date(saved.at).toLocaleString('ko')}`),
+          saved ? h('div', { class: 'card good' },
+            h('p', {}, h('b', {}, '진행 중인 심문이 있습니다.'), ` 질문 ${Math.floor(saved.used)}개 사용 · ${when(saved.at)}`),
             h('button', { class: 'primary', onClick: () => { restore(saved); main(); } }, '▶ 이어서 하기'),
             h('button', { onClick: () => { if (confirm('진행 기록을 지우고 새로 시작할까요?')) { store.del(SAVE_KEY); intro(); } } }, '기록 지우고 새로 시작'),
           ) : null,
@@ -269,7 +284,7 @@ ${known}
             onClick: () => { QUESTION_BUDGET = b.n; store.set('budget', b.n); intro(); },
           }, `${b.label} · ${b.n}개`))),
           h('button', { class: 'primary', onClick: () => {
-            if (saved && saved.used > 0 && !confirm('진행 중인 기록을 덮어쓰고 새로 시작합니다. 괜찮나요?')) return;
+            if (saved && !confirm('진행 중인 기록을 덮어쓰고 새로 시작합니다. 괜찮나요?')) return;
             main();
           } }, '심문 시작'),
           h('button', { onClick: () => settingsScreen() }, '⚙ 설정'),
@@ -382,7 +397,7 @@ ${known}
           h('p', { class: 'muted' }, '기회는 한 번입니다. 누가 범인인가요?'),
           btns,
           h('button', { class: 'danger', onClick: () => {
-            if (!target) return alert('용의자를 고르세요.');
+            if (!target) return DO.toast('용의자를 고르세요.');
             finish(target);
           } }, '지목 확정'),
           h('button', { onClick: main }, '취소'),
@@ -408,6 +423,7 @@ ${known}
           transcript(chats),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
+        if (DO.fx) win ? DO.fx.win() : DO.fx.fail();
       }
 
       if (!settings.apiKey) settingsScreen();

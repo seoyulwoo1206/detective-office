@@ -141,6 +141,7 @@
                 : '이번 단서로 들통난 사람은 없습니다.'),
           h('button', { class: 'primary', onClick: roundStart }, '다음 라운드'),
         );
+        if (busted.length && DO.fx) DO.fx.fail();
       }
 
       // ---------- 5. 범인 지목 ----------
@@ -155,7 +156,7 @@
           h('p', { class: 'muted' }, '누가 지목하나요?'), whoBtns,
           h('p', { class: 'muted' }, '누구를 지목하나요?'), tgtBtns,
           h('button', { class: 'danger', onClick: () => {
-            if (!who || !target) return alert('지목하는 사람과 대상을 모두 고르세요.');
+            if (!who || !target) return DO.toast('지목하는 사람과 대상을 모두 고르세요.');
             if (target.suspect.id === C.culprit) return finish(who);
             who.fingers -= 1; if (who.fingers <= 0) who.out = true;
             render(root,
@@ -165,6 +166,7 @@
                 h('p', {}, h('b', {}, who.name), ' 손가락 -1')),
               h('button', { class: 'primary', onClick: roundStart }, '계속'),
             );
+            DO.fx && DO.fx.fail();
           } }, '지목 확정'),
           h('button', { onClick: roundStart }, '취소'),
         );
@@ -190,6 +192,7 @@
             h('div', { class: 'grow' }, h('b', {}, `${p.name} — ${p.suspect.name}`), h('p', { class: 'muted' }, p.suspect.profile)))),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
+        if (winner && DO.fx) DO.fx.win();
       }
 
       function statusBoard() {

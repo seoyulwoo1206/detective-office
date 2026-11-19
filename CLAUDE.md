@@ -20,7 +20,7 @@
 
 ## 파일 구조
 ```
-index.html            스크립트 로드 순서: core → portrait → sfx → alibi-engine → cases → modes → guide → app
+index.html            스크립트 로드 순서: core → portrait → sfx → fx → alibi-engine → cases → modes → guide → app
 style.css
 js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/render() DOM 헬퍼, rng(seed), shuffle, store(localStorage),
                       nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막)
@@ -28,6 +28,8 @@ js/portrait.js        절차적 초상화. DO.portrait(seed, name, size), DO.fac
                       씨앗이 같으면 같은 얼굴. 이름 속 단어(할머니/초등/경비원/선생 …)로 나이대·머리·모자·안경을 맞춘다. DO.svg() 도 여기.
 js/sfx.js             효과음. DO.sfx('tap'|'tick'|'paper'|'reveal'|'stamp'|'good'|'bad'). 헤더 🔊 버튼(do:sound). 모든 버튼에 tap 이 자동으로 붙고,
                       버튼에 data-quiet 속성을 주면 자동 tap 을 끄고 직접 다른 소리를 낼 수 있다.
+js/fx.js              가벼운 화면 효과. DO.fx.win()(꽃가루+good), good(el)(톡 튀기+good), fail(el)(흔들기+bad), count(el, n)(숫자 세기),
+                      DO.toast(msg)(alert 대신 화면 아래 쪽지). 움직임 줄이기 설정이면 효과를 생략한다.
 js/alibi-engine.js    알리바이 깨기 엔진(DOM 없음): 퍼즐 생성기 + 유일해 검증기. DO.alibi.generate(C, level, variant) / solve / feasible / describe
 js/guide.js           온보딩: 설명 시트(오버레이), 앱 소개/용어 사전, 모드별 설명 GUIDES(meta: 인원/시간/난이도/분류 포함).
                       DO.openGuide(id), DO.openAppGuide(), DO.modeMeta(id). 모드를 추가하면 여기에 항목도 추가.
@@ -45,6 +47,7 @@ js/modes/escape.js    모드 5 방탈출 (협동). 사건에서 방/진술서/�
 data/cases/case-00N.js  손으로 쓴 사건. DO.registerCase({...}) 호출 하나.
 tools/check-cases.js  사건 데이터 불변 조건 검사 (node tools/check-cases.js)
 tools/check-alibi.js  알리바이 엔진 대량 검증 (node tools/check-alibi.js [판 수])
+tools/sim.js          브라우저 자동 플레이 시뮬레이터 (앱에서는 로드 안 함). 사용법은 아래 테스트 항목.
 ```
 
 ## 사건 데이터 구조 (data/cases/*.js)
@@ -84,6 +87,9 @@ DO.registerCase({
 - 홈: 맨 위 `.hero` 는 코르크 수사 보드(`app.js` 의 `heroBoard()` — 날짜로 고른 용의자 셋의 폴라로이드 `.polaroid`, 붉은 실 SVG, 메모지 `.sticky`). 모드 카드 `.mode-card` 는 `.mode-icon` 타일(아이콘은 `app.js` 의 `ICONS`) + `type-party/coop/solo/daily` 로 색이 바뀐다. 구역 제목 `.section-title` 은 손글씨 + 점선.
 - 용의자가 화면에 나오면 `DO.face(C, s, 크기)` 로 얼굴을 붙인다(비밀 프로필, 역할 카드, 진술서, 전원 프로필, 지목 화면). 결과 화면의 도장은 `.stamp`(검거 = 붉은색, 미제 = 잉크색).
 - `#root` 직계 자식은 `rise` 애니메이션으로 올라온다. 스크린샷을 찍을 때는 `#root > * { animation: none }` 을 주입하고, 브라우저 패널을 앞으로 가져온 뒤(`tabs_select`) 찍을 것(패널이 숨겨져 있으면 화면이 갱신되지 않은 채 찍힌다). `prefers-reduced-motion` 이면 꺼진다.
+- 효과(`js/fx.js` + style.css "효과" 구역)는 "있으면 좋은 정도"로만: 큰 성공(결과 화면 승리, 순위 발표)에만 꽃가루 `DO.fx.win()`, 한 사람의 작은 성공은 `DO.fx.good()`, 틀림·들통은 `DO.fx.fail()`. 결과 화면을 `render` 한 **뒤에** 부른다(대상 요소를 찾아야 하므로). 비밀 카드 펼침(`.card.secret`), 홈 보드의 폴라로이드·실·메모지 등장, 도장의 잉크 고리는 CSS 만으로 동작한다. 애니메이션은 `transform` 대신 `translate`/`scale` 개별 속성을 써서 인라인 `transform: rotate()` 와 부딪히지 않게 했다.
+- `alert()` 는 쓰지 말고 `DO.toast()`. `confirm()` 은 되돌릴 수 없는 일(기록 삭제, 홈으로)에만.
+- `body` 는 `overflow-x: clip` — 애니메이션이 잠깐 화면 밖으로 나가도 폰에서 옆으로 밀리지 않는다. 진짜로 넘치는 레이아웃은 잘려서 안 보이므로 `tools/sim.js` 의 가로 넘침 검사로 잡는다.
 - 지나온 테마: 다크 노와르 → 빈티지 사건 파일(갈색 잉크·오프셋 그림자) → 지금. 네온 사이버 / 파스텔 팝 / 미니멀 모노는 검토 후 폐기했다.
 
 ## 온보딩 규칙
@@ -116,6 +122,10 @@ DO.registerCase({
 - 손으로 쓴 사건: `node tools/check-cases.js` — 범인 존재, 거짓말 태그↔조건 일치, 알리바이 장소 단독 점유(증인 1명), 거짓말마다 폭로 단서 존재, 방탈출 자물쇠 번호 출력. 사건을 추가·수정하면 돌릴 것.
 - 알리바이 엔진: `node tools/check-alibi.js 5` — 사건 17 × 난이도 4 × 판 5 = = 340개(전설 포함)에서 유일해(후보 = 범인 1명, 전설은 (누가, 언제) 쌍 1개), 증거 전부 사실, 결백한 사람의 진술·증언 전부 사실, 범인 동선의 지도 정합성, 결정성, 해설 근거의 유효성을 확인(오류 0). 난이도 조건 충족률과 깊이 분포도 출력한다. 엔진을 고치면 반드시 다시 돌릴 것.
 - 생성기 불변 조건(범인 포함, 태그↔조건 일치, 알리바이 장소 단독 점유, 결정성)을 검사하는 스크립트를 node로 돌려 확인했음(500 씨앗 통과). 생성기 재료를 바꾸면 같은 검사를 다시 할 것.
+- 자동 플레이 시뮬레이션: 앱을 열고 콘솔에서 `tools/sim.js` 를 주입한 뒤 `SIM.run({ games: 20, steps: 400, seed: 7 })` (모드 지정은 `modes: ['alibi']`, 저장값 망가뜨리기는 `junk: true`). 진행은 `SIM.progress`, 결과는 `SIM.report`.
+  무작위로 버튼·입력을 눌러 판을 끝까지 진행하며 JS 오류, 화면 글자의 undefined/NaN/null/[object], 가로 넘침, 막다른 화면, 꽃가루·쪽지 누수를 모은다. AI 심문은 가짜 SSE(가끔 529/401/거절) 로 돈다.
+  브라우저 패널이 숨겨져 있으면 타이머가 느려지므로 `tabs_select` 로 앞으로 가져온 뒤 돌린다. 한 번에 다 기다리지 말고 시작만 해 두고 `SIM.progress` 를 확인할 것(알리바이 깨기는 판당 수 초).
+  저장값 검사: `store.get(k, 기본값)` 은 기본값과 종류가 다른 값을 버린다. 기본값을 null 로 읽는 곳은 직접 모양을 검사할 것(AI 심문의 `loadSaved`/`loadDone` 참고).
 - 브라우저: 7개 모드 전부 localhost:8765 에서 한 판씩 눌러 확인함. 알리바이 깨기는 대조·힌트·오판·검거·실패·재연·새 타임라인·일일 사건, 전설의 시각 오판·시각 힌트·시각 해설까지 확인. 효과음은 호출이 오류 없이 도는 것만 확인(실제 소리는 귀로 확인 필요). AI 심문은 `fetch` 를 가짜 SSE 스트림으로 바꿔 스트리밍 파서·저장·이어하기·기록까지 확인했고, 실제 Anthropic 서버 호출만 키가 없어 미확인.
 
 ## 다음 할 일

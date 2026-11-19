@@ -88,10 +88,23 @@ window.DO = (() => {
   }
 
   // localStorage 래퍼 (사생활 모드 등에서 실패해도 앱이 죽지 않게)
+  // get 은 기본값과 종류가 다른 값(예전 버전이 남긴 값, 깨진 JSON 등)이면 기본값을 돌려준다.
+  // 기본값이 null 이면 종류를 따지지 않으니, 그런 곳은 읽은 뒤 직접 검사할 것.
+  function sameKind(x, f) {
+    if (f == null) return true;
+    if (Array.isArray(f)) return Array.isArray(x);
+    if (typeof f === 'number') return typeof x === 'number' && Number.isFinite(x);
+    if (typeof f === 'object') return x != null && typeof x === 'object' && !Array.isArray(x);
+    return typeof x === typeof f;
+  }
   const store = {
     get(k, fallback = null) {
-      try { const v = localStorage.getItem('do:' + k); return v == null ? fallback : JSON.parse(v); }
-      catch { return fallback; }
+      try {
+        const v = localStorage.getItem('do:' + k);
+        if (v == null) return fallback;
+        const x = JSON.parse(v);
+        return sameKind(x, fallback) ? x : fallback;
+      } catch { return fallback; }
     },
     set(k, v) { try { localStorage.setItem('do:' + k, JSON.stringify(v)); } catch { /* ignore */ } },
     del(k) { try { localStorage.removeItem('do:' + k); } catch { /* ignore */ } },
@@ -106,7 +119,8 @@ window.DO = (() => {
   // ---------- 공용 UI: 플레이어 이름 입력 ----------
   // opts: { min, max, title, intro, note, onStart(names) }
   function nameEntry(root, opts) {
-    const names = store.get('lastNames', []).slice(0, opts.max);
+    const names = [...new Set(store.get('lastNames', [])
+      .filter(n => typeof n === 'string' && n.trim()).map(n => n.trim().slice(0, 12)))].slice(0, opts.max);
     const list = h('div');
     const input = h('input', { placeholder: '플레이어 이름', maxlength: 12, autocomplete: 'off' });
     const redraw = () => render(list, names.map((n, i) =>
@@ -117,8 +131,8 @@ window.DO = (() => {
     const add = () => {
       const v = input.value.trim();
       if (!v) return;
-      if (names.length >= opts.max) return alert(`최대 ${opts.max}명까지 가능합니다.`);
-      if (names.includes(v)) return alert('같은 이름이 이미 있습니다.');
+      if (names.length >= opts.max) return DO.toast(`최대 ${opts.max}명까지 가능합니다.`);
+      if (names.includes(v)) return DO.toast('같은 이름이 이미 있습니다.');
       names.push(v); input.value = ''; redraw(); input.focus();
     };
     input.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
@@ -133,7 +147,7 @@ window.DO = (() => {
         list,
       ),
       h('button', { class: 'primary', onClick: () => {
-        if (names.length < opts.min) return alert(`${opts.min}명 이상 필요합니다.`);
+        if (names.length < opts.min) return DO.toast(`${opts.min}명 이상 필요합니다.`);
         store.set('lastNames', names);
         opts.onStart([...names]);
       } }, '시작'),

@@ -258,7 +258,7 @@
         const tryOpen = () => {
           if (dead()) return roomScreen();
           const v = input.value.trim();
-          if (v.length !== room.code.length) return alert(`${room.code.length}자리 번호를 입력하세요.`);
+          if (v.length !== room.code.length) return DO.toast(`${room.code.length}자리 번호를 입력하세요.`);
           spend(1);
           if (v === room.code) {
             sp.searched = true; sp.locked = false;
@@ -268,7 +268,9 @@
               dead() ? h('div', { class: 'card alert' }, h('p', {}, '배터리가 다 됐습니다. 이제 범인을 지목해야 합니다.')) : null,
               h('button', { class: 'primary', onClick: () => roomScreen() }, '방으로 돌아가기'),
             );
+            DO.fx && DO.fx.good(root.querySelector('h2'));
           } else {
+            if (DO.fx) setTimeout(() => DO.fx.fail(), 0);
             boxScreen(sp, `❌ ${v} — 열리지 않는다. (배터리 -1)`);
           }
         };
@@ -377,6 +379,7 @@
             h('div', { class: 'grow' }, h('b', {}, s.name), h('p', { class: 'muted' }, s.profile)))),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
+        if (DO.fx) win ? DO.fx.win() : DO.fx.fail();
       }
 
       levelSelect();

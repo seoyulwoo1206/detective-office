@@ -169,7 +169,7 @@
             h('h3', {}, `나는 이 용의자다 (+${SELF_POINTS})`), selfBtns,
             h('h3', {}, `범인은 이 용의자다 (+${CULPRIT_POINTS})`), culBtns,
             h('button', { class: 'primary', onClick: () => {
-              if (!self || !culprit) return alert('둘 다 고르세요.');
+              if (!self || !culprit) return DO.toast('둘 다 고르세요.');
               p.answer = { self, culprit };
               answerPhase(i + 1);
             } }, i + 1 < players.length ? '확정 → 다음 사람에게' : '확정 → 결과 보기'),
@@ -206,6 +206,7 @@
             h('b', {}, `${p.name} — ${p.suspect.name}`), h('p', { class: 'muted' }, p.suspect.profile))),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
+        DO.fx && DO.fx.win(); // 순위 발표
       }
 
       function board() {

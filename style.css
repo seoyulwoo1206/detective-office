@@ -42,6 +42,7 @@ body {
   margin: 0 auto; min-height: 100vh; color: var(--text);
   font-family: var(--font); max-width: 540px; padding: 0 16px 56px;
   -webkit-font-smoothing: antialiased; position: relative;
+  overflow-x: clip; /* 도장·폭죽 애니메이션이 잠깐 화면 밖으로 나가도 폰에서 옆으로 밀리지 않게 (clip 은 sticky 헤더를 안 깬다) */
 }
 /* 바탕: 종이 결(노이즈) + 점 격자 + 모서리 색 번짐. 스크롤해도 움직이지 않게 고정 레이어로 깐다 */
 body::before {
@@ -407,6 +408,32 @@ textarea { resize: vertical; min-height: 60px; }
 .term b { color: var(--accent); }
 .tips { padding-left: 20px; } .tips li { margin: 4px 0; line-height: 1.6; }
 
+/* ---------- 효과 (js/fx.js) ---------- */
+.fx-confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 60; }
+#root .fx-shake, .fx-shake { animation: shake .42s cubic-bezier(.36, .07, .19, .97) both; }
+#root .fx-pop, .fx-pop { animation: pop .32s cubic-bezier(.2, 1.5, .4, 1) both; }
+/* alert() 대신 뜨는 쪽지: 화면 아래 가운데, 메모지처럼 살짝 기울어 */
+.toast {
+  position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 70; max-width: min(88vw, 420px);
+  padding: 10px 16px; border: 2px solid var(--ink); border-radius: 14px; background: var(--yellow); color: var(--ink);
+  font-weight: 700; font-size: 15px; text-align: center; box-shadow: var(--lip-sm); pointer-events: none;
+  transform: translate(-50%, 24px) rotate(-1.5deg); opacity: 0; transition: transform .22s cubic-bezier(.2, 1.3, .4, 1), opacity .18s;
+}
+.toast.show { transform: translate(-50%, 0) rotate(-1.5deg); opacity: 1; }
+.toast.fx-shake { animation: shakeToast .42s both; }
+/* 비밀 카드: 펼칠 때 종이가 뒤집히듯 */
+#root .card.secret { animation: cardFlip .5s cubic-bezier(.2, .9, .3, 1.15) both; transform-origin: 50% 0; }
+/* 홈 수사 보드: 폴라로이드가 차례로 핀에 꽂힌다 */
+.polaroid { animation: pinDrop .5s cubic-bezier(.2, 1.4, .4, 1) both; }
+.polaroid:nth-of-type(2) { animation-delay: .12s; } .polaroid:nth-of-type(3) { animation-delay: .24s; }
+.board-string { animation: drawString .9s .35s ease-out both; }
+.sticky { animation: pinDrop .5s .5s cubic-bezier(.2, 1.4, .4, 1) both; }
+/* 결과 도장: 찍힌 순간 잉크가 번지는 고리 */
+.stamp::after {
+  content: ""; position: absolute; inset: -6px; border-radius: 14px; border: 3px solid currentColor; pointer-events: none;
+  animation: inkRing .45s .26s ease-out both;
+}
+
 /* ---------- 애니메이션 ---------- */
 #root > * { animation: rise .34s cubic-bezier(.2, .8, .2, 1) both; }
 #root > *:nth-child(2) { animation-delay: .04s; }
@@ -419,7 +446,17 @@ textarea { resize: vertical; min-height: 60px; }
 @keyframes sceneFlash { 50% { fill: #e0604c; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes stampIn { from { transform: rotate(-14deg) scale(2.6); opacity: 0; } to { transform: rotate(-14deg) scale(1); opacity: .92; } }
+@keyframes shake { 15%, 55% { translate: -7px 0; } 35%, 75% { translate: 6px 0; } 90% { translate: -2px 0; } }
+@keyframes shakeToast { 20%, 60% { margin-left: -7px; } 40%, 80% { margin-left: 6px; } }
+@keyframes pop { from { scale: .86; } to { scale: 1; } }
+@keyframes cardFlip { from { opacity: 0; transform: perspective(700px) rotateX(-62deg); } to { opacity: 1; transform: none; } }
+@keyframes pinDrop { from { translate: 0 -26px; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+@keyframes drawString { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes inkRing { from { opacity: .7; scale: 1; } to { opacity: 0; scale: 1.35; } }
 @media (prefers-reduced-motion: reduce) {
-  #root > *, .sheet, .stamp, .amap-ring, .amap-room.flash rect, .handoff .big { animation: none; }
+  #root > *, .sheet, .stamp, .amap-ring, .amap-room.flash rect, .handoff .big,
+  #root .card.secret, .polaroid, .sticky, .board-string, .stamp::after, .toast.fx-shake { animation: none; }
+  .stamp::after { display: none; }
+  .toast { transition: none; }
   .amap-token, .mode-card { transition: none; }
 }

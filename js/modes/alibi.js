@@ -49,7 +49,8 @@
       // ---------- 1. 소개 ----------
       function intro() {
         stop();
-        const best = store.get(`alibi:best:${C.id}:${level}`, null);
+        const best0 = store.get(`alibi:best:${C.id}:${level}`, -1);
+        const best = best0 >= 0 && best0 <= 100 ? Math.round(best0) : null;
         render(root,
           h('h2', {}, C.title),
           h('div', { class: 'card' }, h('p', {}, C.intro)),
@@ -368,7 +369,6 @@
         const rightPerson = i === ci; // 전설에서만 가능: 사람은 맞고 시각이 틀림
         if (rightPerson) { wrongTimes.push(t); outTimes.add(t); } else { wrong.push(i); locked.add(i); marks[i] = 1; }
         if (misses() >= CHANCES) return finish(false);
-        sfx('bad');
         render(root,
           h('h2', {}, '❌ 오판'),
           h('div', { class: 'card alert center' },
@@ -379,6 +379,7 @@
             h('p', { class: 'muted' }, `-${WRONG_COST}점 · 기회 ${CHANCES - misses()}번 남음`)),
           h('button', { class: 'primary', onClick: board }, '수사 계속'),
         );
+        if (DO.fx) DO.fx.fail(); else sfx('bad');
       }
 
       // ---------- 4. 결과: 도장 + 재연 + 해설 ----------
@@ -391,7 +392,11 @@
           if (final > (store.get(key, -1))) store.set(key, final);
         }
         sfx('stamp');
-        setTimeout(() => sfx(win ? 'good' : 'bad'), 380);
+        // 도장이 찍히고 나서: 검거면 꽃가루 + 점수 세기
+        setTimeout(() => {
+          if (win && DO.fx) { DO.fx.win(); DO.fx.count(root.querySelector('.score-num'), final); }
+          else sfx(win ? 'good' : 'bad');
+        }, 380);
 
         const map = buildMap(ci);
         const caption = h('p', { class: 'replay-caption' });
@@ -424,7 +429,7 @@
             h('h2', {}, win ? '알리바이가 무너졌다' : '수사 실패'),
             h('p', {}, h('b', {}, `${CIRC[ci]} ${name(ci)}`), '의 진술이 거짓이었습니다.', p.hidden ? ` 범행 시각은 ${p.times[p.tStar]}.` : ''),
             p.lieSlots.map(t => h('p', { class: 'muted' }, `${p.times[t]}: "${p.places[p.claims[ci][t]].name}"에 있었다고 했지만 사실은 ${p.places[p.truth[ci][t]].name}${p.truth[ci][t] === 0 ? '(현장)' : ''}.`)),
-            h('p', {}, win ? `${'⭐'.repeat(stars(final))} ${final}점` : '0점', h('span', { class: 'muted' }, ` · ${A.LEVELS[level].label} · 힌트 ${hinted.length} · 오판 ${misses()}`)),
+            h('p', {}, win ? [`${'⭐'.repeat(stars(final))} `, h('span', { class: 'score-num' }, DO.fx ? '0' : String(final)), '점'] : '0점', h('span', { class: 'muted' }, ` · ${A.LEVELS[level].label} · 힌트 ${hinted.length} · 오판 ${misses()}`)),
           ),
           h('h3', {}, '🎞 재연 — 그날 실제로 있었던 일'),
           h('div', { class: 'chips' }, h('button', { class: 'chip', 'data-quiet': '1', onClick: play }, '▶ 재생'), chipEls),

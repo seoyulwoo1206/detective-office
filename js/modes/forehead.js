@@ -158,7 +158,7 @@
           h('h3', {}, '내 역할은…'), roleBtns,
           h('h3', {}, '나는 이 용의자다…'), susBtns,
           h('button', { class: 'danger', onClick: () => {
-            if (!role || !sus) return alert('역할과 용의자를 모두 고르세요.');
+            if (!role || !sus) return DO.toast('역할과 용의자를 모두 고르세요.');
             const ok = role === p.role && sus.id === p.suspect.id;
             if (ok) { p.solved = true; p.solvedAt = round; }
             else p.questions += WRONG_PENALTY;
@@ -171,6 +171,7 @@
               ),
               h('button', { class: 'primary', onClick: () => { turn++; turnStart(); } }, '다음 사람'),
             );
+            if (DO.fx) ok ? DO.fx.good() : DO.fx.fail();
           } }, '정답 확정'),
           h('button', { onClick: turnStart }, '취소'),
         );
@@ -193,6 +194,7 @@
           h('p', {}, '이 사건의 범인: ', h('b', {}, C.suspects.find(s => s.id === C.culprit).name)),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
+        if (players.some(p => p.solved) && DO.fx) DO.fx.win();
       }
 
       function scoreBoard() {

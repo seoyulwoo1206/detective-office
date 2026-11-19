@@ -230,7 +230,7 @@
             seedInput,
             h('button', { class: 'small', onClick: () => {
               const n = parseInt(seedInput.value, 10);
-              if (Number.isNaN(n)) return alert('숫자를 입력하세요.');
+              if (Number.isNaN(n)) return DO.toast('숫자를 입력하세요.');
               show(generateCase(n), false);
             } }, '씨앗으로 만들기'),
           ),
