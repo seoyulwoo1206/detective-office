@@ -106,6 +106,7 @@
         if (turn % players.length === 0) {
           round++;
           if (round > MAX_ROUNDS) return finish();
+          if (DO.music) DO.music.intensity(round >= MAX_ROUNDS ? 2 : round >= MAX_ROUNDS - 2 ? 1 : 0);
         }
         const p = players[turn % players.length];
         if (p.solved) { turn++; return turnStart(); }

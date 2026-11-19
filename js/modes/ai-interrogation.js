@@ -320,6 +320,8 @@ ${known}
           sendBtn.disabled = over || busy;
           clueBtn.disabled = over || busy || !remainingClues.length;
           if (over) input.placeholder = '질문을 모두 썼습니다. 범인을 지목하세요.';
+          const left = QUESTION_BUDGET - used;
+          if (DO.music) DO.music.intensity(left <= 2 ? 2 : left <= QUESTION_BUDGET / 2 ? 1 : 0);
         }
 
         async function send() {
@@ -336,6 +338,7 @@ ${known}
             const reply = await ask(settings, buildSystem(C, s, revealedClues), hist, partial => {
               // 글자가 오는 대로 말풍선 채우기 (다른 용의자 탭으로 옮겼으면 조용히 무시)
               if (current !== s) return;
+              if (DO.sfx) DO.sfx('type');
               typing.classList.remove('typing');
               typing.textContent = partial;
               chatBox.scrollTop = chatBox.scrollHeight;
@@ -358,6 +361,7 @@ ${known}
           revealedClues.push(clue);
           used++;
           save();
+          if (DO.sfx) DO.sfx('reveal');
           render(root,
             h('h2', {}, '🗂 단서 카드'),
             h('div', { class: 'card' }, h('p', {}, clue.text)),

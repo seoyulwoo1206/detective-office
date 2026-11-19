@@ -166,6 +166,7 @@ window.DO = (() => {
       ),
     );
     if (DO.sfx) DO.sfx('whoosh');
+    if (DO.music) DO.music.hold('hush'); // 폰을 넘기는 동안 배경음이 벽 너머처럼 먹먹해진다
   }
 
   return {

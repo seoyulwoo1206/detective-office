@@ -73,6 +73,8 @@
       function roundStart() {
         if (conditions.length === 0 || alive().length <= 1) return finish();
         round++;
+        // 긴장도: 조건이 얼마 안 남았거나 손가락이 거의 다 접힌 사람이 있으면
+        if (DO.music) DO.music.intensity(conditions.length <= 2 ? 2 : alive().some(q => q.fingers <= 2) ? 1 : 0);
         const speaker = alive()[turn % alive().length];
         render(root,
           h('h2', {}, `라운드 ${round}`),
@@ -91,8 +93,9 @@
           h('h2', {}, cond.text),
           h('p', { class: 'muted' }, '해당하는 사람은 자기 이름을 눌러 "접음"으로 바꾸세요. 범인은 거짓말해도 됩니다. 단서로 들키면 -2.'),
           alive().map(p => {
-            const btn = h('button', { onClick: () => {
+            const btn = h('button', { 'data-quiet': '1', onClick: () => {
               toggles[p.name] = !toggles[p.name];
+              if (DO.sfx) DO.sfx(toggles[p.name] ? 'fold' : 'unfold');
               btn.textContent = `${p.name} — ${toggles[p.name] ? '✋ 접음' : '안 접음'}`;
               btn.classList.toggle('primary', !!toggles[p.name]);
             } }, `${p.name} — 안 접음`);
@@ -141,7 +144,7 @@
                 : '이번 단서로 들통난 사람은 없습니다.'),
           h('button', { class: 'primary', onClick: roundStart }, '다음 라운드'),
         );
-        if (busted.length && DO.fx) DO.fx.fail(); else if (DO.sfx) DO.sfx('reveal');
+        if (busted.length && DO.fx) DO.fx.fail(null, 'busted'); else if (DO.sfx) DO.sfx('reveal');
       }
 
       // ---------- 5. 범인 지목 ----------

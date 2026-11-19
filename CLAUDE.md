@@ -26,13 +26,18 @@ js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/
                       nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막)
 js/portrait.js        절차적 초상화. DO.portrait(seed, name, size), DO.face(C, suspect, size) → <span class="portrait">(SVG).
                       씨앗이 같으면 같은 얼굴. 이름 속 단어(할머니/초등/경비원/선생 …)로 나이대·머리·모자·안경을 맞춘다. DO.svg() 도 여기.
-js/sfx.js             소리 바탕. 공용 AudioContext·버스(효과음/배경음 → duck → 압축기), 잔향, 합성 악기 DO.synth(keys·vibe·bass·pluck·ride·brush·
-                      tick·pad·heart·drone·trem·brass·hiss·beep — 모두 (out, t, …) 꼴이라 오프라인 렌더에도 쓴다), 효과음 DO.sfx(name):
-                      tap tick paper reveal stamp good bad whoosh(폰 넘기기) rummage(뒤지기) unlock(자물쇠) yes/no(이마 게임 답) fanfare(승리) lose(미제).
-                      큰 효과음은 배경음을 잠깐 줄인다(duck). 모든 버튼에 tap 이 자동으로 붙고, data-quiet 를 주면 끈다. 첫 실제 입력에서 깨어나고, 탭이 숨으면 잠든다.
-js/music.js           배경음. 분위기 lobby(홈·사건 선택: 스윙 재즈) / think(게임 중: 초침+피치카토) / suspense(지목 화면: 심장 박동) / result(결과: 팡파르 뒤 잔잔하게).
-                      DO.music.base(분위기) = 바탕(app.js 가 정함), DO.music.hold(분위기) = render 직후 부르면 그 화면에만 붙고 화면이 바뀌면 저절로 풀림.
-                      헤더 🔊 = 소리 설정 팝업(배경음 켜기·크기, 효과음 켜기 — do:music, do:musicVol, do:sound). DO.music.render(분위기, 초) = 오프라인 렌더(검사용).
+js/sfx.js             소리 바탕. 공용 AudioContext·버스(효과음 / 배경음 → 먹먹 필터 → duck → 압축기), 잔향, 합성 악기 DO.synth
+                      (keys vibe flute marimba bass pluck ride brush shaker snap rim tick pad heart drone trem brass horn hum rain drip hiss beep pan
+                      — 모두 (out, t, …) 꼴이라 오프라인 렌더에도 쓴다). 효과음 DO.sfx(name, { delay, pitch, step }):
+                      버튼 클릭은 종류별로 자동(press=primary, heavy=danger, select=용의자 고르기, card=목록 카드, soft=칩·small, tap=나머지; data-quiet 면 끔).
+                      상황음: paper sheet reveal stamp good bad whoosh rummage unlock yes/no fold/unfold busted hint match/clash scribble type battery empty
+                      flash coin pop fanfare lose. 자주 나는 소리는 음높이를 살짝 흔들고(VARY) 너무 잦으면 건너뛴다(RATE). 큰 소리는 배경음을 잠깐 줄인다(BIG).
+                      첫 실제 입력에서 깨어나고(사파리 때문에 입력 처리 안에서 바로), 탭이 숨으면 잠든다.
+js/music.js           배경음 10곡. 분위기 → 곡: lobby(시간대별: 낮 bossa / 저녁 swing / 밤 rainy), party(파티 모드), think(알리바이), interrogation(AI 심문),
+                      explore(방탈출), suspense(지목, 점점 빨라짐), victory/defeat(결과), hush(폰 넘기기: 곡은 그대로 먹먹하게). 모드 → 분위기는 MODE_MUSIC.
+                      DO.music.startGame(모드 id) = 게임 시작(app.js·daily.js), base(분위기) = 바탕, hold(분위기) = render 직후 부르면 그 화면에만 붙고 화면이 바뀌면 풀림,
+                      intensity(0~2) = 긴장도(곡마다 킥·셰이커·초침·심장 박동 층이 더해짐). 곡은 마디마다 필인·장식음·선율을 조금씩 무작위로 바꾼다.
+                      헤더 🔊 = 소리 설정 팝업(배경음 켜기·크기, 효과음 켜기, 지금 곡 이름 — do:music, do:musicVol, do:sound). DO.music.render(곡, 초, {lvl}) = 오프라인 렌더(검사용).
 js/fx.js              가벼운 화면 효과. DO.fx.ending(win)(결과 화면: 배경음 result + 승리면 꽃가루·팡파르, 아니면 미제 소리·흔들기), win(), good(el, 소리), fail(el, 소리), count(el, n)(숫자 세기),
                       DO.toast(msg)(alert 대신 화면 아래 쪽지). 움직임 줄이기 설정이면 효과를 생략한다.
 js/alibi-engine.js    알리바이 깨기 엔진(DOM 없음): 퍼즐 생성기 + 유일해 검증기. DO.alibi.generate(C, level, variant) / solve / feasible / describe
@@ -93,8 +98,10 @@ DO.registerCase({
 - 용의자가 화면에 나오면 `DO.face(C, s, 크기)` 로 얼굴을 붙인다(비밀 프로필, 역할 카드, 진술서, 전원 프로필, 지목 화면). 결과 화면의 도장은 `.stamp`(검거 = 붉은색, 미제 = 잉크색).
 - `#root` 직계 자식은 `rise` 애니메이션으로 올라온다. 스크린샷을 찍을 때는 `#root > * { animation: none }` 을 주입하고, 브라우저 패널을 앞으로 가져온 뒤(`tabs_select`) 찍을 것(패널이 숨겨져 있으면 화면이 갱신되지 않은 채 찍힌다). `prefers-reduced-motion` 이면 꺼진다.
 - 효과(`js/fx.js` + style.css "효과" 구역)는 "있으면 좋은 정도"로만: 큰 성공(결과 화면 승리, 순위 발표)에만 꽃가루 `DO.fx.win()`, 한 사람의 작은 성공은 `DO.fx.good()`, 틀림·들통은 `DO.fx.fail()`. 결과 화면을 `render` 한 **뒤에** 부른다(대상 요소를 찾아야 하므로). 비밀 카드 펼침(`.card.secret`), 홈 보드의 폴라로이드·실·메모지 등장, 도장의 잉크 고리는 CSS 만으로 동작한다. 애니메이션은 `transform` 대신 `translate`/`scale` 개별 속성을 써서 인라인 `transform: rotate()` 와 부딪히지 않게 했다.
-- 소리 규칙: 새 모드를 만들면 지목(정답 말하기) 화면은 render 뒤에 `DO.music.hold('suspense')`, 결과 화면은 render 뒤에 `DO.fx.ending(이겼나)`. 게임 중 화면은 바탕(think)이 알아서 깔린다.
-  배경음 크기는 오프라인 렌더로 맞춘다(기본 볼륨에서 RMS 약 -30 dBFS, 효과음 최고점은 클릭 -26 ~ 팡파르 -3). 곡이나 악기를 고치면 `DO.music.render` / `DO.audio.renderSfx` 로 최고점·RMS 를 다시 재서 깨짐(0 dB 근처)이 없는지 볼 것.
+- 소리 규칙: 새 모드를 만들면 `music.js` 의 `MODE_MUSIC` 에 곡을 정하고, 지목(정답 말하기) 화면은 render 뒤에 `DO.music.hold('suspense')`, 결과 화면은 render 뒤에 `DO.fx.ending(이겼나)`.
+  긴장도는 상황이 바뀌는 곳(라운드 시작, 남은 기회·배터리·질문이 줄 때)에서 `DO.music.intensity(0~2)`. 폰 넘기기(`DO.handOff`)는 알아서 먹먹해진다.
+  배경음 크기는 곡의 `gain` 으로 오프라인 렌더에 맞춘다(기본 볼륨에서 RMS -30 ~ -32 dBFS, 효과음 최고점은 클릭 -29 ~ -23, 상황음 -25 ~ -15, 큰 순간 -10 ~ -3).
+  곡이나 악기를 고치면 `DO.music.render` / `DO.audio.renderSfx` 로 최고점·RMS 를 다시 재서 깨짐(0 dB 근처)이 없는지 볼 것. 렌더 시간도 볼 것(12초 곡이 3초 넘게 걸리면 폰에서 버거울 수 있다 — 음마다 필터를 만드는 악기를 줄일 것).
 - `alert()` 는 쓰지 말고 `DO.toast()`. `confirm()` 은 되돌릴 수 없는 일(기록 삭제, 홈으로)에만.
 - `body` 는 `overflow-x: clip` — 애니메이션이 잠깐 화면 밖으로 나가도 폰에서 옆으로 밀리지 않는다. 진짜로 넘치는 레이아웃은 잘려서 안 보이므로 `tools/sim.js` 의 가로 넘침 검사로 잡는다.
 - 지나온 테마: 다크 노와르 → 빈티지 사건 파일(갈색 잉크·오프셋 그림자) → 지금. 네온 사이버 / 파스텔 팝 / 미니멀 모노는 검토 후 폐기했다.

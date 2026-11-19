@@ -21,6 +21,7 @@
       nodes,
     );
     overlay.hidden = false;
+    if (DO.sfx) DO.sfx('sheet');
     sheet.scrollTop = 0;
     document.body.classList.add('no-scroll');
   }

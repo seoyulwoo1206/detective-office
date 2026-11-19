@@ -163,7 +163,7 @@
 
   function begin(mode, c) {
     enterMode(mode);
-    if (DO.music) DO.music.base('think');
+    if (DO.music) DO.music.startGame(mode.id);
     try {
       mode.start(root, { case: c });
     } catch (e) {

@@ -88,6 +88,7 @@
       const room = buildRoom(C);
       let level = LEVELS[1];
       let battery = 0;
+      let entered = false;
       let compared = false;
       // 역할 분담: 2명 이상이면 뒤질 곳을 사람별로 나눈다 (잠긴 상자는 공용). null 이면 다 같이.
       let teamMode = false;
@@ -147,6 +148,8 @@
 
       // ---------- 2. 방 ----------
       function roomScreen(notice) {
+        if (!entered) { entered = true; if (DO.sfx) DO.sfx('flash'); } // 처음 들어갈 때 손전등 딸깍
+        if (DO.music) { const r = battery / level.battery; DO.music.intensity(r <= 0.2 ? 2 : r <= 0.5 ? 1 : 0); }
         render(root,
           h('div', { class: 'row' },
             h('h2', { class: 'grow' }, '🚪 ' + ((C.scene && C.scene.name) || '사건 현장')),
@@ -182,6 +185,7 @@
 
       function spend(n = 1) {
         battery = Math.max(0, battery - n);
+        if (battery > 0 && battery <= 3 && DO.sfx) DO.sfx('battery', { delay: 0.6 }); // 배터리 경고
       }
 
       function openSpot(sp) {
@@ -244,6 +248,8 @@
       }
 
       function showItem(sp, fresh) {
+        // 뒤지는 소리(rummage) 뒤에 무엇을 찾았는지 소리로
+        if (fresh && DO.sfx) DO.sfx({ statement: 'paper', clue: 'reveal', hint: 'reveal', junk: 'empty' }[sp.item.kind] || 'paper', { delay: 0.32 });
         render(root,
           h('p', { class: 'muted small-text' }, `${sp.emoji} ${sp.name}${fresh ? '을(를) 뒤졌다.' : ' (다시 보기)'} · 🔦 ${battery}`),
           itemView(sp.item),

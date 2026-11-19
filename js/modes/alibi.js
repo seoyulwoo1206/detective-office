@@ -164,7 +164,7 @@
         const markEls = p.suspects.map(() => h('span', { class: 'tl-mark' }));
         const headEls = p.suspects.map((s, i) => h('button', { class: 'tl-who', 'data-quiet': '1', title: '눌러서 결백/의심 표시', onClick: () => {
           if (locked.has(i)) return;
-          marks[i] = (marks[i] + 1) % 3; sfx('tick'); update();
+          marks[i] = (marks[i] + 1) % 3; sfx('scribble'); update();
         } }, h('span', { class: 'tl-face' }, face(i, 30), num(i), markEls[i]), h('span', { class: 'tl-name' }, s.name)));
         // 시간 머리: 보통은 범행 칸 하나에 "범행", 전설은 후보 세 칸에 "후보"(아니라고 밝혀지면 줄을 긋는다)
         const timeEls = p.times.map((tm, t) => (p.hidden
@@ -193,7 +193,8 @@
           return h('button', { class: 'ecard' + (c.by != null ? ' testi' : ''), 'data-quiet': '1', onClick: () => {
             focus = (focus && focus.type === 'card' && focus.n === n) ? null : { type: 'card', n };
             if (focus) mapTime = A.cells(c).times[0];
-            sfx('paper'); update();
+            // 카드를 펼치면 대조 결과가 소리로도: 맞으면 맑은 두 음, 어긋나면 불협화음 + 쿵
+            sfx(focus ? (tally(c).ok ? 'match' : 'clash') : 'paper'); update();
           } },
             h('span', { class: 'ecard-head' }, h('span', {}, `${d.icon} ${d.title}`), h('span', { class: 'muted' }, `${n + 1}/${cards.length}`)),
             c.by != null ? h('span', { class: 'speaker' }, num(c.by), name(c.by)) : null,
@@ -239,7 +240,7 @@
           if (item.type === 'time') outTimes.add(item.t);
           else { locked.add(item.i); marks[item.i] = 1; }
           score = Math.max(0, score - HINT_COST);
-          sfx('reveal');
+          sfx('hint');
           hintBox.append(hintCard(item));
           update();
         }
@@ -272,6 +273,8 @@
 
         function update() {
           scoreEl.textContent = `⭐ ${score}`;
+          // 긴장도: 한 번 틀렸으면 최고, 결백 표시가 거의 다 찼으면(범인에 가까워짐) 한 단계
+          if (DO.music) DO.music.intensity(misses() >= 1 ? 2 : marks.filter(m => m === 1).length >= p.suspects.length - 2 ? 1 : 0);
           // 강조할 칸
           // hot = 카드가 직접 가리키는 칸(굵은 테두리), soft = 같이 봐야 할 칸(점선), hotTimes 밖의 열은 흐리게
           const hot = new Set(), soft = new Set(), hotTimes = new Set();

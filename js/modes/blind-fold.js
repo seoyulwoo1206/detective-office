@@ -84,6 +84,7 @@
       function roundStart() {
         if (round >= totalRounds || conditions.length === 0) return answerPhase(0);
         round++;
+        if (DO.music) DO.music.intensity(round >= totalRounds ? 2 : round >= totalRounds - 1 ? 1 : 0);
         const picker = players[(round - 1) % players.length];
         render(root,
           h('h2', {}, `라운드 ${round}/${totalRounds}`),

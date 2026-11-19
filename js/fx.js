@@ -92,17 +92,20 @@
     if (reduced() || !(to > 0)) { el.textContent = String(to); return; }
     const t0 = performance.now();
     el.textContent = '0';
+    let lastTen = 0;
     const step = now => {
       if (!el.isConnected) return;
       const k = Math.min(1, (now - t0) / ms);
-      el.textContent = String(Math.round(to * (1 - Math.pow(1 - k, 3))));
+      const v = Math.round(to * (1 - Math.pow(1 - k, 3)));
+      el.textContent = String(v);
+      if (Math.floor(v / 10) > lastTen) { lastTen = Math.floor(v / 10); sfx('coin', { step: Math.round(12 * v / to) }); } // 10점마다 딩, 갈수록 높게
       if (k < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
     setTimeout(() => { el.textContent = String(to); }, ms + 400);
   }
 
-  function win() { sfx('fanfare'); confetti(); }
+  function win() { sfx('fanfare'); sfx('pop'); confetti(); }
   // 작은 성공(한 사람이 맞힘, 상자가 열림): 꽃가루 없이 톡 튀어나오기만. sound 로 소리를 바꿀 수 있다.
   function good(el, sound = 'good') { sfx(sound); pop(el || document.querySelector('#root .card.good') || document.querySelector('#root h2')); }
   function fail(el, sound = 'bad') {
@@ -112,7 +115,7 @@
   // 게임이 끝난 결과 화면: render 직후에 부른다. 배경음을 결과 분위기로 바꾸고(화면에 붙음),
   // delay 뒤에 승리면 팡파르+꽃가루, 아니면 "둥 둥 두웅" + 흔들기.
   function ending(isWin, { delay = 0 } = {}) {
-    if (DO.music) DO.music.hold('result');
+    if (DO.music) DO.music.hold(isWin ? 'victory' : 'defeat');
     const go = () => (isWin ? win() : fail(null, 'lose'));
     if (delay) setTimeout(go, delay); else go();
   }
