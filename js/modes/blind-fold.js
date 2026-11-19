@@ -174,6 +174,7 @@
               answerPhase(i + 1);
             } }, i + 1 < players.length ? '확정 → 다음 사람에게' : '확정 → 결과 보기'),
           );
+          DO.music && DO.music.hold('suspense');
         });
       }
 
@@ -206,7 +207,7 @@
             h('b', {}, `${p.name} — ${p.suspect.name}`), h('p', { class: 'muted' }, p.suspect.profile))),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
-        DO.fx && DO.fx.win(); // 순위 발표
+        if (DO.fx) DO.fx.ending(true); // 순위 발표
       }
 
       function board() {

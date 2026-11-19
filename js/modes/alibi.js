@@ -360,6 +360,7 @@
             p.hidden ? `${name(pick)} · ${p.times[pickT]} 지목 확정` : `${name(pick)} 지목 확정`) : null,
           h('button', { onClick: board }, '돌아가서 더 살펴보기'),
         );
+        DO.music && DO.music.hold('suspense');
       }
 
       function verdict(i, t) {
@@ -392,11 +393,8 @@
           if (final > (store.get(key, -1))) store.set(key, final);
         }
         sfx('stamp');
-        // 도장이 찍히고 나서: 검거면 꽃가루 + 점수 세기
-        setTimeout(() => {
-          if (win && DO.fx) { DO.fx.win(); DO.fx.count(root.querySelector('.score-num'), final); }
-          else sfx(win ? 'good' : 'bad');
-        }, 380);
+        // 도장이 찍히고 나서 점수를 센다 (팡파르·꽃가루는 아래 render 뒤의 ending 에서)
+        if (win && DO.fx) setTimeout(() => DO.fx.count(root.querySelector('.score-num'), final), 380);
 
         const map = buildMap(ci);
         const caption = h('p', { class: 'replay-caption' });
@@ -453,6 +451,7 @@
           level < TOP ? h('button', { onClick: () => { level++; store.set('alibi:level', level); begin(); } }, `⬆ 난이도 올리기 (${A.LEVELS[level + 1].label})`) : null,
           h('button', { onClick: () => DO.goHome() }, '처음으로'),
         );
+        if (DO.fx) DO.fx.ending(win, { delay: 380 }); else setTimeout(() => sfx(win ? 'good' : 'bad'), 380);
         setTimeout(() => { if (map.el.isConnected) play(); }, 900);
       }
 

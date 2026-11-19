@@ -402,6 +402,7 @@ ${known}
           } }, '지목 확정'),
           h('button', { onClick: main }, '취소'),
         );
+        DO.music && DO.music.hold('suspense');
       }
 
       function finish(target) {
@@ -423,7 +424,7 @@ ${known}
           transcript(chats),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
-        if (DO.fx) win ? DO.fx.win() : DO.fx.fail();
+        if (DO.fx) DO.fx.ending(win);
       }
 
       if (!settings.apiKey) settingsScreen();

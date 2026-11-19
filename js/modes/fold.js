@@ -141,7 +141,7 @@
                 : '이번 단서로 들통난 사람은 없습니다.'),
           h('button', { class: 'primary', onClick: roundStart }, '다음 라운드'),
         );
-        if (busted.length && DO.fx) DO.fx.fail();
+        if (busted.length && DO.fx) DO.fx.fail(); else if (DO.sfx) DO.sfx('reveal');
       }
 
       // ---------- 5. 범인 지목 ----------
@@ -170,6 +170,7 @@
           } }, '지목 확정'),
           h('button', { onClick: roundStart }, '취소'),
         );
+        DO.music && DO.music.hold('suspense');
       }
 
       // ---------- 6. 종료 ----------
@@ -192,7 +193,8 @@
             h('div', { class: 'grow' }, h('b', {}, `${p.name} — ${p.suspect.name}`), h('p', { class: 'muted' }, p.suspect.profile)))),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
-        if (winner && DO.fx) DO.fx.win();
+        // 탐정 쪽 승리: 누가 범인을 맞혔거나, 범인이 아닌 사람이 끝까지 살아남음
+        if (DO.fx) DO.fx.ending(!!winner || (alive().length === 1 && alive()[0] !== culprit));
       }
 
       function statusBoard() {

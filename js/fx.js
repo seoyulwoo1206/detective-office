@@ -1,5 +1,6 @@
 // 가벼운 화면 효과. 파일·라이브러리 없이 캔버스와 CSS 클래스로만.
-//   DO.fx.win()          맞혔을 때: 양쪽 아래에서 종이 꽃가루 + 'good' 소리
+//   DO.fx.ending(win)    결과 화면에서: 배경음을 결과 분위기로 + 승리면 win(), 아니면 '미제' 소리와 흔들기
+//   DO.fx.win()          맞혔을 때: 양쪽 아래에서 종이 꽃가루 + 팡파르
 //   DO.fx.good(el)       작은 성공: el(없으면 초록 카드)이 톡 튀어나오기 + 'good' 소리
 //   DO.fx.fail(el)       틀렸을 때: el(없으면 화면의 빨간 카드)을 좌우로 흔들기 + 'bad' 소리
 //   DO.fx.confetti()     꽃가루만
@@ -101,13 +102,23 @@
     setTimeout(() => { el.textContent = String(to); }, ms + 400);
   }
 
-  function win() { sfx('good'); confetti(); }
-  // 작은 성공(한 사람이 맞힘, 상자가 열림): 꽃가루 없이 톡 튀어나오기만
-  function good(el) { sfx('good'); pop(el || document.querySelector('#root .card.good') || document.querySelector('#root h2')); }
-  function fail(el) {
-    sfx('bad');
+  function win() { sfx('fanfare'); confetti(); }
+  // 작은 성공(한 사람이 맞힘, 상자가 열림): 꽃가루 없이 톡 튀어나오기만. sound 로 소리를 바꿀 수 있다.
+  function good(el, sound = 'good') { sfx(sound); pop(el || document.querySelector('#root .card.good') || document.querySelector('#root h2')); }
+  function fail(el, sound = 'bad') {
+    sfx(sound);
     shake(el || document.querySelector('#root .card.alert') || document.querySelector('#root h2'));
   }
+  // 게임이 끝난 결과 화면: render 직후에 부른다. 배경음을 결과 분위기로 바꾸고(화면에 붙음),
+  // delay 뒤에 승리면 팡파르+꽃가루, 아니면 "둥 둥 두웅" + 흔들기.
+  function ending(isWin, { delay = 0 } = {}) {
+    if (DO.music) DO.music.hold('result');
+    const go = () => (isWin ? win() : fail(null, 'lose'));
+    if (delay) setTimeout(go, delay); else go();
+  }
+
+  // 비밀 카드가 펼쳐질 때(CSS cardFlip) 종이 소리
+  document.addEventListener('animationstart', e => { if (e.animationName === 'cardFlip') sfx('paper'); });
 
   // alert() 대신 쓰는 쪽지. 같은 말을 연달아 누르면 새로 띄우지 않고 흔들기만 한다.
   let toastEl = null, toastTimer = null;
@@ -126,6 +137,6 @@
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
   }
 
-  DO.fx = { confetti, shake, pop, count, win, good, fail };
+  DO.fx = { confetti, shake, pop, count, win, good, fail, ending };
   DO.toast = toast;
 })();

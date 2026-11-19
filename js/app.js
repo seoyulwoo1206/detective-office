@@ -65,6 +65,7 @@
 
   function home() {
     currentMode = null;
+    if (DO.music) DO.music.base('lobby');
     homeBtn.hidden = true;
     helpBtn.hidden = true;
     title.textContent = '탐정 사무소';
@@ -112,6 +113,7 @@
   // 사건 선택 화면. 모드가 pickCase:false 면 건너뛴다(일일 사건처럼 스스로 사건을 만드는 모드).
   function startMode(mode) {
     enterMode(mode);
+    if (DO.music) DO.music.base('lobby');
     if (mode.pickCase === false) return mode.start(root, {});
 
     const cases = listCases();
@@ -161,6 +163,7 @@
 
   function begin(mode, c) {
     enterMode(mode);
+    if (DO.music) DO.music.base('think');
     try {
       mode.start(root, { case: c });
     } catch (e) {

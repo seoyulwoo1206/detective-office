@@ -142,6 +142,7 @@
           h('p', { class: 'muted' }, `${p.name} 질문 수: ${p.questions}`),
           h('button', { class: 'primary', onClick: () => { turn++; turnStart(); } }, '다음 사람'),
         );
+        if (DO.sfx) DO.sfx(yes ? 'yes' : 'no');
       }
 
       // ---------- 정답 말하기 ----------
@@ -175,6 +176,7 @@
           } }, '정답 확정'),
           h('button', { onClick: turnStart }, '취소'),
         );
+        DO.music && DO.music.hold('suspense');
       }
 
       // ---------- 4. 종료 ----------
@@ -194,7 +196,7 @@
           h('p', {}, '이 사건의 범인: ', h('b', {}, C.suspects.find(s => s.id === C.culprit).name)),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
-        if (players.some(p => p.solved) && DO.fx) DO.fx.win();
+        if (DO.fx) DO.fx.ending(players.some(p => p.solved));
       }
 
       function scoreBoard() {

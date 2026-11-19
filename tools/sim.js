@@ -118,6 +118,11 @@
     if (!root.children.length) issues.push('빈 화면');
     if (document.querySelectorAll('.fx-confetti').length > 1) issues.push('꽃가루 캔버스가 쌓임');
     if (document.querySelectorAll('.toast').length > 1) issues.push('쪽지가 여러 개');
+    // 배경음: 화면에 붙은 분위기가 화면과 맞는지 (지목 화면 = suspense, 결과 화면 = result)
+    if (DO.music && DO.music.on) {
+      const m = DO.music.mood, h2 = (root.querySelector('h2') || {}).textContent || '';
+      if (m === 'suspense' && !/지목|거짓말쟁이는|범인은|정답|답$/.test(h2)) issues.push(`배경음 suspense 인데 화면은 "${h2.slice(0, 16)}"`);
+    }
     return issues;
   }
 
@@ -162,7 +167,7 @@
   // 저장소에 엉뚱한 값이 들어 있어도 버티는지 (예전 버전이 남긴 값, 손으로 고친 값, 반쯤 쓰다 만 값)
   const JUNK = [null, 'abc', -3, 99, 1.5, [], {}, [1, 2], { used: 'x' }, '', true, ['', '', '', '', '', '', '', '', '']];
   function corrupt() {
-    const keys = ['alibi:level', 'budget', 'lastNames', 'caseFilter', 'model', 'sound', 'apiKey'];
+    const keys = ['alibi:level', 'budget', 'lastNames', 'caseFilter', 'model', 'sound', 'apiKey', 'music', 'musicVol'];
     for (const c of DO.listCases()) keys.push('alibi:v:' + c.id, 'ai:' + c.id, 'ai:done:' + c.id, `alibi:best:${c.id}:0`);
     for (const k of keys) if (S.rand() < 0.5) DO.store.set(k, JUNK[Math.floor(S.rand() * JUNK.length)]);
     if (S.rand() < 0.2) localStorage.setItem('do:lastNames', '{broken json');

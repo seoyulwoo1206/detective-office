@@ -197,6 +197,7 @@
       }
 
       function search(sp) {
+        if (DO.sfx) DO.sfx('rummage');
         spend(1);
         sp.searched = true;
         showItem(sp, true);
@@ -268,7 +269,7 @@
               dead() ? h('div', { class: 'card alert' }, h('p', {}, '배터리가 다 됐습니다. 이제 범인을 지목해야 합니다.')) : null,
               h('button', { class: 'primary', onClick: () => roomScreen() }, '방으로 돌아가기'),
             );
-            DO.fx && DO.fx.good(root.querySelector('h2'));
+            DO.fx && DO.fx.good(root.querySelector('h2'), 'unlock');
           } else {
             if (DO.fx) setTimeout(() => DO.fx.fail(), 0);
             boxScreen(sp, `❌ ${v} — 열리지 않는다. (배터리 -1)`);
@@ -348,6 +349,7 @@
           } }, s.name)),
           h('button', { onClick: () => roomScreen() }, '돌아가기'),
         );
+        DO.music && DO.music.hold('suspense');
       }
 
       function finish(target) {
@@ -379,7 +381,7 @@
             h('div', { class: 'grow' }, h('b', {}, s.name), h('p', { class: 'muted' }, s.profile)))),
           h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
-        if (DO.fx) win ? DO.fx.win() : DO.fx.fail();
+        if (DO.fx) DO.fx.ending(win);
       }
 
       levelSelect();

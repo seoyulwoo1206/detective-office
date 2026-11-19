@@ -5,7 +5,7 @@
 ## 현재 상태
 - 바닐라 HTML/JS, 빌드 없음. `index.html`을 더블클릭해서 열어도 바로 실행된다 (fetch 안 씀).
 - 구현됨 (7개): **용의자 접기**, **이마 게임**, **이마 접기**(둘의 결합), **알리바이 깨기**(타임라인 논리 추리), **AI 심문**, **일일 사건(자동 생성기)**, **방탈출**
-- 용의자 얼굴은 이미지 파일 없이 SVG 로 즉석 생성(`js/portrait.js`), 효과음은 WebAudio 합성(`js/sfx.js`).
+- 용의자 얼굴은 이미지 파일 없이 SVG 로 즉석 생성(`js/portrait.js`), 효과음·배경음도 파일 없이 WebAudio 합성(`js/sfx.js`, `js/music.js`).
 - 손으로 쓴 사건 17개 (학교 3, 학원 1, 캠핑 1, 가족 모임 1, 동아리 MT 1, 편의점 1, 아파트 1, 병원 1, 도서관 1, 온라인 게임 길드 1, 호텔 1, 수영장 1, 공항 1, 결혼식장 1, 스터디 카페 1) + 자동 생성 사건.
 - 로컬 서버로 띄우고 싶으면 폴더에서 `python -m http.server 8765` (`.claude/launch.json`에 등록됨).
 - git 저장소 (브랜치 `main`). 커밋은 이 폴더 안에서.
@@ -20,15 +20,20 @@
 
 ## 파일 구조
 ```
-index.html            스크립트 로드 순서: core → portrait → sfx → fx → alibi-engine → cases → modes → guide → app
+index.html            스크립트 로드 순서: core → portrait → sfx → music → fx → alibi-engine → cases → modes → guide → app
 style.css
 js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/render() DOM 헬퍼, rng(seed), shuffle, store(localStorage),
                       nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막)
 js/portrait.js        절차적 초상화. DO.portrait(seed, name, size), DO.face(C, suspect, size) → <span class="portrait">(SVG).
                       씨앗이 같으면 같은 얼굴. 이름 속 단어(할머니/초등/경비원/선생 …)로 나이대·머리·모자·안경을 맞춘다. DO.svg() 도 여기.
-js/sfx.js             효과음. DO.sfx('tap'|'tick'|'paper'|'reveal'|'stamp'|'good'|'bad'). 헤더 🔊 버튼(do:sound). 모든 버튼에 tap 이 자동으로 붙고,
-                      버튼에 data-quiet 속성을 주면 자동 tap 을 끄고 직접 다른 소리를 낼 수 있다.
-js/fx.js              가벼운 화면 효과. DO.fx.win()(꽃가루+good), good(el)(톡 튀기+good), fail(el)(흔들기+bad), count(el, n)(숫자 세기),
+js/sfx.js             소리 바탕. 공용 AudioContext·버스(효과음/배경음 → duck → 압축기), 잔향, 합성 악기 DO.synth(keys·vibe·bass·pluck·ride·brush·
+                      tick·pad·heart·drone·trem·brass·hiss·beep — 모두 (out, t, …) 꼴이라 오프라인 렌더에도 쓴다), 효과음 DO.sfx(name):
+                      tap tick paper reveal stamp good bad whoosh(폰 넘기기) rummage(뒤지기) unlock(자물쇠) yes/no(이마 게임 답) fanfare(승리) lose(미제).
+                      큰 효과음은 배경음을 잠깐 줄인다(duck). 모든 버튼에 tap 이 자동으로 붙고, data-quiet 를 주면 끈다. 첫 실제 입력에서 깨어나고, 탭이 숨으면 잠든다.
+js/music.js           배경음. 분위기 lobby(홈·사건 선택: 스윙 재즈) / think(게임 중: 초침+피치카토) / suspense(지목 화면: 심장 박동) / result(결과: 팡파르 뒤 잔잔하게).
+                      DO.music.base(분위기) = 바탕(app.js 가 정함), DO.music.hold(분위기) = render 직후 부르면 그 화면에만 붙고 화면이 바뀌면 저절로 풀림.
+                      헤더 🔊 = 소리 설정 팝업(배경음 켜기·크기, 효과음 켜기 — do:music, do:musicVol, do:sound). DO.music.render(분위기, 초) = 오프라인 렌더(검사용).
+js/fx.js              가벼운 화면 효과. DO.fx.ending(win)(결과 화면: 배경음 result + 승리면 꽃가루·팡파르, 아니면 미제 소리·흔들기), win(), good(el, 소리), fail(el, 소리), count(el, n)(숫자 세기),
                       DO.toast(msg)(alert 대신 화면 아래 쪽지). 움직임 줄이기 설정이면 효과를 생략한다.
 js/alibi-engine.js    알리바이 깨기 엔진(DOM 없음): 퍼즐 생성기 + 유일해 검증기. DO.alibi.generate(C, level, variant) / solve / feasible / describe
 js/guide.js           온보딩: 설명 시트(오버레이), 앱 소개/용어 사전, 모드별 설명 GUIDES(meta: 인원/시간/난이도/분류 포함).
@@ -88,6 +93,8 @@ DO.registerCase({
 - 용의자가 화면에 나오면 `DO.face(C, s, 크기)` 로 얼굴을 붙인다(비밀 프로필, 역할 카드, 진술서, 전원 프로필, 지목 화면). 결과 화면의 도장은 `.stamp`(검거 = 붉은색, 미제 = 잉크색).
 - `#root` 직계 자식은 `rise` 애니메이션으로 올라온다. 스크린샷을 찍을 때는 `#root > * { animation: none }` 을 주입하고, 브라우저 패널을 앞으로 가져온 뒤(`tabs_select`) 찍을 것(패널이 숨겨져 있으면 화면이 갱신되지 않은 채 찍힌다). `prefers-reduced-motion` 이면 꺼진다.
 - 효과(`js/fx.js` + style.css "효과" 구역)는 "있으면 좋은 정도"로만: 큰 성공(결과 화면 승리, 순위 발표)에만 꽃가루 `DO.fx.win()`, 한 사람의 작은 성공은 `DO.fx.good()`, 틀림·들통은 `DO.fx.fail()`. 결과 화면을 `render` 한 **뒤에** 부른다(대상 요소를 찾아야 하므로). 비밀 카드 펼침(`.card.secret`), 홈 보드의 폴라로이드·실·메모지 등장, 도장의 잉크 고리는 CSS 만으로 동작한다. 애니메이션은 `transform` 대신 `translate`/`scale` 개별 속성을 써서 인라인 `transform: rotate()` 와 부딪히지 않게 했다.
+- 소리 규칙: 새 모드를 만들면 지목(정답 말하기) 화면은 render 뒤에 `DO.music.hold('suspense')`, 결과 화면은 render 뒤에 `DO.fx.ending(이겼나)`. 게임 중 화면은 바탕(think)이 알아서 깔린다.
+  배경음 크기는 오프라인 렌더로 맞춘다(기본 볼륨에서 RMS 약 -30 dBFS, 효과음 최고점은 클릭 -26 ~ 팡파르 -3). 곡이나 악기를 고치면 `DO.music.render` / `DO.audio.renderSfx` 로 최고점·RMS 를 다시 재서 깨짐(0 dB 근처)이 없는지 볼 것.
 - `alert()` 는 쓰지 말고 `DO.toast()`. `confirm()` 은 되돌릴 수 없는 일(기록 삭제, 홈으로)에만.
 - `body` 는 `overflow-x: clip` — 애니메이션이 잠깐 화면 밖으로 나가도 폰에서 옆으로 밀리지 않는다. 진짜로 넘치는 레이아웃은 잘려서 안 보이므로 `tools/sim.js` 의 가로 넘침 검사로 잡는다.
 - 지나온 테마: 다크 노와르 → 빈티지 사건 파일(갈색 잉크·오프셋 그림자) → 지금. 네온 사이버 / 파스텔 팝 / 미니멀 모노는 검토 후 폐기했다.
@@ -126,7 +133,7 @@ DO.registerCase({
   무작위로 버튼·입력을 눌러 판을 끝까지 진행하며 JS 오류, 화면 글자의 undefined/NaN/null/[object], 가로 넘침, 막다른 화면, 꽃가루·쪽지 누수를 모은다. AI 심문은 가짜 SSE(가끔 529/401/거절) 로 돈다.
   브라우저 패널이 숨겨져 있으면 타이머가 느려지므로 `tabs_select` 로 앞으로 가져온 뒤 돌린다. 한 번에 다 기다리지 말고 시작만 해 두고 `SIM.progress` 를 확인할 것(알리바이 깨기는 판당 수 초).
   저장값 검사: `store.get(k, 기본값)` 은 기본값과 종류가 다른 값을 버린다. 기본값을 null 로 읽는 곳은 직접 모양을 검사할 것(AI 심문의 `loadSaved`/`loadDone` 참고).
-- 브라우저: 7개 모드 전부 localhost:8765 에서 한 판씩 눌러 확인함. 알리바이 깨기는 대조·힌트·오판·검거·실패·재연·새 타임라인·일일 사건, 전설의 시각 오판·시각 힌트·시각 해설까지 확인. 효과음은 호출이 오류 없이 도는 것만 확인(실제 소리는 귀로 확인 필요). AI 심문은 `fetch` 를 가짜 SSE 스트림으로 바꿔 스트리밍 파서·저장·이어하기·기록까지 확인했고, 실제 Anthropic 서버 호출만 키가 없어 미확인.
+- 브라우저: 7개 모드 전부 localhost:8765 에서 한 판씩 눌러 확인함. 알리바이 깨기는 대조·힌트·오판·검거·실패·재연·새 타임라인·일일 사건, 전설의 시각 오판·시각 힌트·시각 해설까지 확인. 소리는 실제 입력으로 깨운 뒤 분위기 전환(홈→사건 선택→게임→지목→되돌아감→결과→홈)·설정 팝업·duck 을 확인했고, 오프라인 렌더로 크기·깨짐·NaN 을 쟀다. 실제로 귀로 듣는 확인은 아직 못 함. AI 심문은 `fetch` 를 가짜 SSE 스트림으로 바꿔 스트리밍 파서·저장·이어하기·기록까지 확인했고, 실제 Anthropic 서버 호출만 키가 없어 미확인.
 
 ## 다음 할 일
 - [ ] 알리바이 깨기: 공범 변형(거짓말쟁이 2명) 검토. 검증기의 후보를 용의자 쌍으로 넓혀야 한다.

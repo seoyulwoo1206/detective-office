@@ -165,6 +165,7 @@ window.DO = (() => {
         h('button', { class: 'primary', onClick: next }, `${who} 입니다`),
       ),
     );
+    if (DO.sfx) DO.sfx('whoosh');
   }
 
   return {
