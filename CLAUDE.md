@@ -32,7 +32,10 @@ js/sfx.js             소리 바탕. 공용 AudioContext·버스(효과음 / 배
                       버튼 클릭은 종류별로 자동(press=primary, heavy=danger, select=용의자 고르기, card=목록 카드, soft=칩·small, tap=나머지; data-quiet 면 끔).
                       상황음: paper sheet reveal stamp good bad whoosh rummage unlock yes/no fold/unfold busted hint match/clash scribble type battery empty
                       flash coin pop fanfare lose. 자주 나는 소리는 음높이를 살짝 흔들고(VARY) 너무 잦으면 건너뛴다(RATE). 큰 소리는 배경음을 잠깐 줄인다(BIG).
-                      첫 실제 입력에서 깨어나고(사파리 때문에 입력 처리 안에서 바로), 탭이 숨으면 잠든다.
+                      첫 실제 입력에서 깨어나고(사파리 때문에 입력 처리 안에서 바로) 이후엔 화면을 떠나면 멈추고 돌아오면 다시 켜진다:
+                      떠남 = 탭 숨김·앱 전환·잠금(visibilitychange), 다른 창 클릭·confirm 창(blur), pagehide, freeze → 0.1초 페이드 후 suspend.
+                      돌아옴 = 다시 보임·focus·pageshow(persisted)·resume → resume 후 페이드 인. 잠든 동안 시계가 멈춰 곡이 그 자리부터 이어진다.
+                      떠나 있는 동안 타이머가 DO.sfx 를 불러도 깨우지 않는다(DO.audio.away). 자동으로 못 깨우면 다음 터치에서 깨어난다.
 js/music.js           배경음 10곡. 분위기 → 곡: lobby(시간대별: 낮 bossa / 저녁 swing / 밤 rainy), party(파티 모드), think(알리바이), interrogation(AI 심문),
                       explore(방탈출), suspense(지목, 점점 빨라짐), victory/defeat(결과), hush(폰 넘기기: 곡은 그대로 먹먹하게). 모드 → 분위기는 MODE_MUSIC.
                       DO.music.startGame(모드 id) = 게임 시작(app.js·daily.js), base(분위기) = 바탕, hold(분위기) = render 직후 부르면 그 화면에만 붙고 화면이 바뀌면 풀림,

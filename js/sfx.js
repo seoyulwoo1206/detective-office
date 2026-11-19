@@ -43,7 +43,8 @@
   function buses(ac, dest = ac.destination) {
     const comp = ac.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 10; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.25;
-    comp.connect(dest);
+    const master = ac.createGain(); master.connect(dest); // 화면을 떠날 때 여기서 부드럽게 줄인다
+    comp.connect(master);
     const sfx = ac.createGain(); sfx.connect(comp);
     const duck = ac.createGain(); duck.connect(comp);
     // 먹먹하게(폰 넘길 때): 배경음만 저역 통과 + 조금 작게
@@ -52,7 +53,7 @@
     const music = ac.createGain(); music.connect(muffle);
     const mVerb = reverb(ac, 2, 3); mVerb.connect(music);
     const sVerb = reverb(ac, 1.4, 4); sVerb.connect(sfx);
-    return { comp, sfx, duck, music, muffle, muffleGain, sfxIn: sendPair(ac, sfx, sVerb, 0.22), musicIn: sendPair(ac, music, mVerb, 0.32) };
+    return { comp, master, sfx, duck, music, muffle, muffleGain, sfxIn: sendPair(ac, sfx, sVerb, 0.22), musicIn: sendPair(ac, music, mVerb, 0.32) };
   }
 
   // ---------- 악기 ----------
@@ -409,22 +410,54 @@
     }
     return A;
   }
-  function wake() {
+  // ---------- 화면을 떠나면 소리를 멈춘다 ----------
+  // 떠남: 탭 숨김·앱 전환·화면 잠금(visibilitychange), 다른 창 클릭(blur), 페이지 떠남(pagehide), 백그라운드 동결(freeze).
+  // 0.1초 동안 소리를 줄인 뒤 컨텍스트를 잠재운다(뚝 끊기는 잡음 방지). 잠든 동안은 시계가 멈추므로 돌아오면 곡이 멈춘 자리부터 이어진다.
+  // 떠나 있는 동안 타이머(재연 재생, AI 답변 타자 소리 등)가 DO.sfx 를 불러도 깨우지 않는다.
+  let away = false, sleepTimer = null;
+  function fadeTo(v, tau) {
+    if (!A) return;
+    const p = A.master.gain, now = A.ac.currentTime;
+    p.cancelScheduledValues(now); p.setValueAtTime(p.value, now); p.setTargetAtTime(v, now, tau);
+  }
+  function leave() {
+    if (!A || away) return;
+    away = true;
+    fadeTo(0, 0.03);
+    clearTimeout(sleepTimer);
+    sleepTimer = setTimeout(() => { if (away && A) A.ac.suspend().catch(() => {}); }, 150);
+  }
+  // 돌아옴: 화면이 다시 보이면(탭·앱 복귀) 바로, 창 포커스만 돌아온 경우엔 포커스가 있을 때. 소리는 0.3초쯤 걸쳐 다시 커진다.
+  // 자동으로 못 깨우는 브라우저(아이폰이 오디오를 'interrupted' 로 묶어 둘 때)는 다음 터치에서 깨어난다.
+  function come(sure = false) {
+    if (!A || !away) return;
+    if (document.hidden || (!sure && !document.hasFocus())) return; // 아직 다른 창을 보고 있다
+    away = false;
+    clearTimeout(sleepTimer);
+    if (!ready) return; // 한 번도 소리를 켠 적 없음: 다음 입력에서 깨어난다
+    const up = () => fadeTo(1, 0.1);
+    if (A.ac.state === 'running') up(); else A.ac.resume().then(up, () => {});
+  }
+
+  function wake(fromUser = false) {
     const a = ensure();
     if (!a) return a;
+    if (away) { if (fromUser) come(true); else return a; } // 떠나 있는 동안은 효과음이 불려도 깨우지 않는다
     // 터치 중에 만들어지면 처음부터 running 일 수 있다 (그땐 statechange 가 안 온다)
     if (a.ac.state === 'running') markReady();
-    else if (a.ac.state === 'suspended' && !document.hidden) a.ac.resume().then(markReady, () => {});
+    else if (a.ac.state !== 'closed' && !document.hidden) a.ac.resume().then(markReady, () => {}); // suspended·interrupted
     return a;
   }
   // 첫 사용자 입력에서 깨운다 (자동 클릭 같은 가짜 이벤트로는 안 깨움)
-  const unlock = e => { if (e.isTrusted) wake(); }; // 사파리는 입력 처리 안에서 바로 깨워야 한다 (setTimeout 금지)
+  const unlock = e => { if (e.isTrusted) wake(true); }; // 사파리는 입력 처리 안에서 바로 깨워야 한다 (setTimeout 금지)
   ['pointerdown', 'touchend', 'keydown'].forEach(ev => window.addEventListener(ev, unlock, true));
-  document.addEventListener('visibilitychange', () => {
-    if (!A) return;
-    if (document.hidden) A.ac.suspend().catch(() => {});
-    else if (ready) A.ac.resume().catch(() => {});
-  });
+  document.addEventListener('visibilitychange', () => (document.hidden ? leave() : come(true)));
+  window.addEventListener('blur', leave);
+  window.addEventListener('focus', () => come(true));
+  window.addEventListener('pagehide', leave);
+  window.addEventListener('pageshow', e => { if (e.persisted) come(true); });
+  document.addEventListener('freeze', leave);
+  document.addEventListener('resume', () => come(true));
 
   function duck(sec) {
     if (!A || !sec) return;
@@ -461,6 +494,7 @@
   DO.audio = {
     get, wake, buses, duck, SOUNDS,
     get ready() { return ready; },
+    get away() { return away; }, // 화면을 떠나 소리를 멈춘 상태인가
     onReady(f) { if (ready) f(); else readyCbs.push(f); },
     // 개발용: 효과음 하나를 오프라인으로 렌더 → AudioBuffer
     renderSfx(name, seconds = 3) {
