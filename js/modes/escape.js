@@ -86,7 +86,9 @@
     start(root, ctx) {
       const C = ctx.case;
       const room = buildRoom(C);
-      let level = LEVELS[1];
+      // 모험 모드(career.js)에서 부를 때: { level: 0~2, batteryBonus, freeCompare, onDone({ win, stars }) } — 난이도 화면을 건너뛰고 바로 방으로.
+      const P = ctx.preset || null;
+      let level = P ? LEVELS[Math.max(0, Math.min(LEVELS.length - 1, P.level | 0))] : LEVELS[1];
       let battery = 0;
       let entered = false;
       let compared = false;
@@ -177,7 +179,7 @@
           })),
           h('div', { class: 'row' },
             h('button', { class: 'grow', onClick: notebook }, `📓 수첩 (${found().length})`),
-            h('button', { class: 'grow', onClick: compare }, compared ? '🔍 단서 대조' : `🔍 대조 (🔦${COMPARE_COST})`),
+            h('button', { class: 'grow', onClick: compare }, compared ? '🔍 단서 대조' : (P && P.freeCompare ? '🔍 대조 (무료)' : `🔍 대조 (🔦${COMPARE_COST})`)),
           ),
           h('button', { class: 'danger', onClick: accuse }, '🎯 범인 지목'),
         );
@@ -322,8 +324,9 @@
         const clues = foundClues().filter(c => c.exposes);
         if (!compared) {
           if (!clues.length) return roomScreen('조건과 연결된 단서를 먼저 하나 이상 찾아야 대조할 수 있습니다.');
-          if (battery < COMPARE_COST) return roomScreen(`배터리가 ${COMPARE_COST} 이상 필요합니다.`);
-          spend(COMPARE_COST);
+          const cost = P && P.freeCompare ? 0 : COMPARE_COST;
+          if (battery < cost) return roomScreen(`배터리가 ${cost} 이상 필요합니다.`);
+          if (cost) spend(cost);
           compared = true;
         }
         const sts = foundStatements();
@@ -385,12 +388,13 @@
           C.suspects.map(s => h('div', { class: 'card explain' + (s === culprit ? ' alert' : '') },
             DO.face(C, s, 44),
             h('div', { class: 'grow' }, h('b', {}, s.name), h('p', { class: 'muted' }, s.profile)))),
-          h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
+          P ? h('button', { class: 'primary', onClick: () => P.onDone({ win, stars }) }, '📒 수첩으로 돌아가기')
+            : h('button', { class: 'primary', onClick: () => DO.goHome() }, '처음으로'),
         );
         if (DO.fx) DO.fx.ending(win);
       }
 
-      levelSelect();
+      if (P) { battery = level.battery + (P.batteryBonus | 0); roomScreen(); } else levelSelect();
     },
   });
 })();

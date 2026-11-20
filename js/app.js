@@ -26,7 +26,7 @@
   }
 
   // 홈 카드의 아이콘 타일. 모드를 추가하면 여기에도 한 줄.
-  const ICONS = { fold: '✋', forehead: '🤔', 'blind-fold': '🙈', alibi: '🧩', 'ai-interrogation': '🤖', daily: '📅', escape: '🔦' };
+  const ICONS = { career: '🎖️', fold: '✋', forehead: '🤔', 'blind-fold': '🙈', alibi: '🧩', 'ai-interrogation': '🤖', daily: '📅', escape: '🔦' };
 
   function modeCard(m) {
     const meta = DO.modeMeta ? DO.modeMeta(m.id) : {};
@@ -77,17 +77,19 @@
     });
     const rest = modes.filter(m => !placed.has(m));
     const starter = modes.find(m => m.id === 'fold' && m.ready);
+    const career = modes.find(m => m.id === 'career' && m.ready);
 
     render(root,
       h('div', { class: 'card hero' },
         heroBoard(),
         h('div', { class: 'hero-body' },
           h('h3', {}, '👋 처음이세요?'),
-          h('p', { class: 'muted' }, '폰 하나를 돌려가며 하는 추리 파티 게임 모음입니다. 사건 하나에 용의자 여러 명, 그중 한 명이 거짓말쟁이 범인. 혼자라면 논리로 푸는 "알리바이 깨기"부터.'),
+          h('p', { class: 'muted' }, '폰 하나를 돌려가며 하는 추리 파티 게임 모음입니다. 사건 하나에 용의자 여러 명, 그중 한 명이 거짓말쟁이 범인. 혼자라면 "명탐정의 길"에서 사건을 하나씩 깨며 레벨을 올려 보세요.'),
           h('div', { class: 'row' },
             h('button', { class: 'grow', onClick: () => DO.openAppGuide && DO.openAppGuide() }, '📖 게임 소개'),
             starter ? h('button', { class: 'grow primary', onClick: () => startMode(starter) }, '🚀 바로 시작') : null,
           ),
+          career ? h('button', { class: 'career-cta', onClick: () => startMode(career) }, '🎖️ 혼자 모험하기 — 명탐정의 길') : null,
         ),
       ),
       sections,

@@ -16,7 +16,7 @@
 
   const TOKEN = ['#b8402f', '#3b6ea5', '#3f7d4e', '#7d5aa0', '#c98a1b', '#2b8a8a'];
   const CIRC = ['①', '②', '③', '④', '⑤', '⑥'];
-  const HINT_COST = 15, WRONG_COST = 30, CHANCES = 2, STEP_MS = 1200;
+  const BASE_HINT_COST = 15, WRONG_COST = 30, BASE_CHANCES = 2, STEP_MS = 1200;
   const stars = score => (score >= 85 ? 3 : score >= 55 ? 2 : 1);
 
   DO.registerMode({
@@ -27,8 +27,13 @@
     start(root, ctx) {
       const C = ctx.case;
       const TOP = A.LEVELS.length - 1;
-      let level = Math.max(0, Math.min(TOP, store.get('alibi:level', 0) | 0));
-      let variant = store.get('alibi:v:' + C.id, 0) | 0;
+      // 모험 모드(career.js)에서 부를 때: { level, variant, hintCost, chances, freeHints, onDone({ win, score, stars }) }
+      // 소개 화면을 건너뛰고 바로 수사를 시작하며, 결과 화면에서는 onDone 으로 돌아간다. 이 모드의 최고 기록·판 번호는 건드리지 않는다.
+      const P = ctx.preset || null;
+      const HINT_COST = P && P.hintCost != null ? P.hintCost : BASE_HINT_COST;
+      const CHANCES = P && P.chances ? P.chances : BASE_CHANCES;
+      let level = P ? Math.max(0, Math.min(TOP, P.level | 0)) : Math.max(0, Math.min(TOP, store.get('alibi:level', 0) | 0));
+      let variant = P ? P.variant | 0 : store.get('alibi:v:' + C.id, 0) | 0;
       let p = null;
       // hinted: 받은 힌트 목록({type:'time',t} | {type:'who',i}), wrong: 잘못 지목한 사람, wrongTimes: 사람은 맞혔지만 틀린 시각(전설),
       // outTimes: 범행 시각이 아니라고 밝혀진 칸(전설)
@@ -76,8 +81,13 @@
 
       function begin() {
         p = A.generate(C, level, variant);
-        if (!p) return render(root, h('p', {}, '이 사건으로는 타임라인을 만들지 못했습니다.'), h('button', { onClick: () => DO.goHome() }, '처음으로'));
+        if (!p) return render(root, h('p', {}, '이 사건으로는 타임라인을 만들지 못했습니다.'), h('button', { onClick: () => (P ? P.onDone({ win: false, score: 0, stars: 0 }) : DO.goHome()) }, P ? '돌아가기' : '처음으로'));
         score = 100; hinted = []; wrong = []; wrongTimes = []; outTimes = new Set(); locked = new Set(); marks = p.suspects.map(() => 0);
+        // 모험 모드의 '직감' 능력: 결백한 사람 몇 명을 점수 깎임 없이 미리 밝혀 둔다
+        if (P && P.freeHints) {
+          p.cores.slice().sort((a, b) => a.core.length - b.core.length).slice(0, Math.min(P.freeHints, p.suspects.length - 2))
+            .forEach(c => { hinted.push({ type: 'who', i: c.i, free: true }); locked.add(c.i); marks[c.i] = 1; });
+        }
         focus = null; mapTime = p.hidden ? p.window[1] : p.tStar;
         sfx('paper');
         board();
@@ -229,7 +239,7 @@
           }
           const core = p.cores.find(c => c.i === item.i).core;
           return h('div', { class: 'card good' },
-            h('p', {}, '💡 ', h('b', {}, `${CIRC[item.i]} ${name(item.i)}`), ` — 결백. 이 사람이 거짓말쟁이라면 ${p.times[p.tStar]}에 현장에 있었어야 하는데, 그러면 아래와 동시에 성립할 수 없다.`),
+            h('p', {}, item.free ? '🔮 직감: ' : '💡 ', h('b', {}, `${CIRC[item.i]} ${name(item.i)}`), ` — 결백. 이 사람이 거짓말쟁이라면 ${p.times[p.tStar]}에 현장에 있었어야 하는데, 그러면 아래와 동시에 성립할 수 없다.`),
             core.map(cardLine),
           );
         }
@@ -391,7 +401,7 @@
         stop();
         const ci = p.culpritIdx;
         const final = win ? score : 0;
-        if (win) {
+        if (win && !P) {
           const key = `alibi:best:${C.id}:${level}`;
           if (final > (store.get(key, -1))) store.set(key, final);
         }
@@ -430,7 +440,7 @@
             h('h2', {}, win ? '알리바이가 무너졌다' : '수사 실패'),
             h('p', {}, h('b', {}, `${CIRC[ci]} ${name(ci)}`), '의 진술이 거짓이었습니다.', p.hidden ? ` 범행 시각은 ${p.times[p.tStar]}.` : ''),
             p.lieSlots.map(t => h('p', { class: 'muted' }, `${p.times[t]}: "${p.places[p.claims[ci][t]].name}"에 있었다고 했지만 사실은 ${p.places[p.truth[ci][t]].name}${p.truth[ci][t] === 0 ? '(현장)' : ''}.`)),
-            h('p', {}, win ? [`${'⭐'.repeat(stars(final))} `, h('span', { class: 'score-num' }, DO.fx ? '0' : String(final)), '점'] : '0점', h('span', { class: 'muted' }, ` · ${A.LEVELS[level].label} · 힌트 ${hinted.length} · 오판 ${misses()}`)),
+            h('p', {}, win ? [`${'⭐'.repeat(stars(final))} `, h('span', { class: 'score-num' }, DO.fx ? '0' : String(final)), '점'] : '0점', h('span', { class: 'muted' }, ` · ${A.LEVELS[level].label} · 힌트 ${hinted.filter(x => !x.free).length} · 오판 ${misses()}`)),
           ),
           h('h3', {}, '🎞 재연 — 그날 실제로 있었던 일'),
           h('div', { class: 'chips' }, h('button', { class: 'chip', 'data-quiet': '1', onClick: play }, '▶ 재생'), chipEls),
@@ -450,15 +460,17 @@
             h('div', { class: 'grow' },
               h('p', {}, h('b', {}, `${CIRC[co.i]} ${name(co.i)}`), ` — 거짓말쟁이라면 ${p.times[p.tStar]}에 현장에 있었어야 한다. 그러면 아래${co.core.length > 1 ? ' 둘 이상' : ''}과 함께 성립할 수 없다.`),
               co.core.map(c => { const d = A.describe(p, c); return h('p', { class: 'muted small-text' }, `${d.icon} ${c.by != null ? name(c.by) + '의 증언: ' : d.title + ': '}${d.text}`); })))),
-          h('button', { class: 'primary', onClick: () => { variant++; store.set('alibi:v:' + C.id, variant); begin(); } }, '🔁 같은 사건, 새 타임라인'),
-          level < TOP ? h('button', { onClick: () => { level++; store.set('alibi:level', level); begin(); } }, `⬆ 난이도 올리기 (${A.LEVELS[level + 1].label})`) : null,
-          h('button', { onClick: () => DO.goHome() }, '처음으로'),
+          P ? h('button', { class: 'primary', onClick: () => P.onDone({ win, score: final, stars: win ? stars(final) : 0 }) }, '📒 수첩으로 돌아가기') : [
+            h('button', { class: 'primary', onClick: () => { variant++; store.set('alibi:v:' + C.id, variant); begin(); } }, '🔁 같은 사건, 새 타임라인'),
+            level < TOP ? h('button', { onClick: () => { level++; store.set('alibi:level', level); begin(); } }, `⬆ 난이도 올리기 (${A.LEVELS[level + 1].label})`) : null,
+            h('button', { onClick: () => DO.goHome() }, '처음으로'),
+          ],
         );
         if (DO.fx) DO.fx.ending(win, { delay: 380 }); else setTimeout(() => sfx(win ? 'good' : 'bad'), 380);
         setTimeout(() => { if (map.el.isConnected) play(); }, 900);
       }
 
-      intro();
+      if (P) begin(); else intro();
     },
   });
 })();

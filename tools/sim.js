@@ -169,7 +169,7 @@
   // 저장소에 엉뚱한 값이 들어 있어도 버티는지 (예전 버전이 남긴 값, 손으로 고친 값, 반쯤 쓰다 만 값)
   const JUNK = [null, 'abc', -3, 99, 1.5, [], {}, [1, 2], { used: 'x' }, '', true, ['', '', '', '', '', '', '', '', '']];
   function corrupt() {
-    const keys = ['alibi:level', 'budget', 'lastNames', 'caseFilter', 'model', 'sound', 'apiKey', 'music', 'musicVol'];
+    const keys = ['alibi:level', 'budget', 'lastNames', 'caseFilter', 'model', 'sound', 'apiKey', 'music', 'musicVol', 'career'];
     for (const c of DO.listCases()) keys.push('alibi:v:' + c.id, 'ai:' + c.id, 'ai:done:' + c.id, `alibi:best:${c.id}:0`);
     for (const k of keys) if (S.rand() < 0.5) DO.store.set(k, JUNK[Math.floor(S.rand() * JUNK.length)]);
     if (S.rand() < 0.2) localStorage.setItem('do:lastNames', '{broken json');

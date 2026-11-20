@@ -262,7 +262,7 @@
     defeat: { song: 'defeat', delay: 2.6 },
     hush: { muffle: true },
   };
-  const MODE_MUSIC = { fold: 'party', forehead: 'party', 'blind-fold': 'party', alibi: 'think', 'ai-interrogation': 'interrogation', escape: 'explore', daily: 'lobby' };
+  const MODE_MUSIC = { career: 'lobby', fold: 'party', forehead: 'party', 'blind-fold': 'party', alibi: 'think', 'ai-interrogation': 'interrogation', escape: 'explore', daily: 'lobby' };
   const songOf = mood => { const s = MOODS[mood].song; return typeof s === 'function' ? s() : s; };
 
   // ---------- 재생 ----------
