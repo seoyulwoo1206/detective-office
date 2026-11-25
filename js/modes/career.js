@@ -1,9 +1,9 @@
 // 모드 8: 명탐정의 길 (혼자 하는 모험 · RPG 식 성장)
 //
-// 수습 탐정으로 등록해 5장 21사건을 차례로 깬다. 사건은 기존 혼자 모드 두 가지를 그대로 쓴다:
-//   🧩 알리바이 깨기(alibi.js, 난이도 0~3)  🔦 방탈출(escape.js, 난이도 0~2) — 둘 다 ctx.preset 으로 불러서 결과를 돌려받는다.
-// 사건을 깨면 별(1~3)에 따라 경험치 → 레벨 업 → 능력 포인트 → 능력(힌트 감점 줄이기, 기회 +1, 배터리 +3 …).
-// 장마다 마지막은 보스 사건. 보스를 잡으면 다음 장이 열리고, 장 사이사이에 '그림자'를 쫓는 짧은 이야기가 나온다.
+// 수습 탐정으로 등록해 5장 17사건을 차례로 깬다. 사건은 '현장 수사'(js/investigate.js) 방식:
+//   도입 영상 → 사건 배경 그림 속 장소·사람을 눌러 단서와 진술 모으기(수첩에 자동 기록) → 범인·거짓말·증거를 골라 "이의 있음!"
+// 사건을 깨면 별(남은 신뢰 ❤️, 조수 힌트를 쓰면 줄어듦)에 따라 경험치 → 레벨 업 → 능력 포인트 → 능력.
+// 장마다 마지막은 보스 사건(범인이 한 번 버텨서 거짓말 두 개를 다 찔러야 함). 보스를 잡으면 다음 장이 열리고 '그림자'를 쫓는 이야기가 이어진다.
 // 오늘의 의뢰: 날짜로 만든 자동 생성 사건 3건(하루 한 번씩) — 이야기와 별개로 경험치를 모은다.
 // 저장: do:career = { name, xp, perks{id:랭크}, best{stageId:별}, plays{stageId:횟수}, seen{장id:true}, quests{date, done[]} }
 
@@ -11,44 +11,50 @@
   const { h, render, store } = DO;
   const sfx = (n, o) => { if (DO.sfx) DO.sfx(n, o); };
   const KEY = 'career';
-  const ALIBI = 'alibi', ESCAPE = 'escape';
-  const LV = { alibi: ['입문', '보통', '어려움', '전설'], escape: ['쉬움', '보통', '어려움'] };
-  const TYPE = { alibi: { icon: '🧩', name: '알리바이 깨기' }, escape: { icon: '🔦', name: '방탈출' } };
+  const SCENE = 'scene';
+  const LV = { scene: ['입문', '보통', '어려움', '전설'] };
+  const TYPE = { scene: { icon: '🕵️', name: '현장 수사' } };
+  const LV_DESC = [
+    '조사 횟수 무제한 · 단서에 관련 이야기가 표시됨',
+    '조사 16번 · 단서에 관련 이야기가 표시됨',
+    '조사 13번 · 관련 이야기 표시 없음',
+    '조사 11번 · 관련 이야기 표시 없음',
+  ];
 
   // ---------- 이야기와 사건 ----------
   const CHAPTERS = [
     {
       id: 'c1', title: '1장 · 수습 탐정의 첫 출근', place: '🏫 학교',
       story: '오늘부터 탐정 사무소의 수습 탐정. 소장님이 건넨 첫 파일은 학교에서 온 작은 의뢰들이다. "작은 거짓말부터 잡아 봐. 큰 거짓말도 결국 같은 모양이니까."',
-      clear: '사건을 정리하던 중 파일 사이에서 검은 카드 한 장이 떨어졌다. "제법이네, 수습. — 그림자" 누군가 지켜보고 있다.',
-      stages: [{ c: 'case-001', t: ALIBI, lv: 0 }, { c: 'case-002', t: ESCAPE, lv: 0 }, { c: 'case-003', t: ALIBI, lv: 0 }, { c: 'case-004', t: ESCAPE, lv: 0 }, { c: 'case-017', t: ALIBI, lv: 1, boss: true }],
+      clear: '사건을 정리하던 중 파일 사이에서 검은 카드 한 장이 떨어졌다. "제법이네, 수습." 누군가 지켜보고 있다.',
+      stages: [{ c: 'case-001', lv: 0 }, { c: 'case-002', lv: 0 }, { c: 'case-003', lv: 0 }, { c: 'case-004', lv: 1 }, { c: 'case-017', lv: 1, boss: true }],
     },
     {
       id: 'c2', title: '2장 · 골목길의 소문', place: '🏡 동네',
       story: '동네에 이상한 소문이 돈다. 사건이 날 때마다 근처에서 검은 장갑을 낀 사람을 봤다는 것. 그냥 우연일까?',
       clear: '범인은 잡았지만 "누가 시켰다"는 말만 되풀이했다. 그의 주머니에서 또 검은 카드. "다음은 가게들이야."',
-      stages: [{ c: 'case-005', t: ALIBI, lv: 1 }, { c: 'case-006', t: ESCAPE, lv: 1 }, { c: 'case-009', t: ALIBI, lv: 1 }, { c: 'case-006', t: ALIBI, lv: 2, boss: true }],
+      stages: [{ c: 'case-005', lv: 1 }, { c: 'case-006', lv: 1 }, { c: 'case-009', lv: 2, boss: true }],
     },
     {
       id: 'c3', title: '3장 · 가게 뒤편의 비밀', place: '🏢 가게·시설',
       story: '편의점, 병원, 도서관, 호텔. 가게 뒤편에서 사건이 줄줄이 터진다. 그림자가 예고한 그대로다.',
       clear: '호텔 범인의 수첩에 적힌 다음 장소는 축제와 공항. 그림자는 판을 키우고 있다.',
-      stages: [{ c: 'case-008', t: ALIBI, lv: 1 }, { c: 'case-010', t: ESCAPE, lv: 1 }, { c: 'case-011', t: ALIBI, lv: 2 }, { c: 'case-014', t: ALIBI, lv: 2, boss: true }],
+      stages: [{ c: 'case-008', lv: 1 }, { c: 'case-010', lv: 2 }, { c: 'case-011', lv: 2 }, { c: 'case-014', lv: 2, boss: true }],
     },
     {
       id: 'c4', title: '4장 · 축제와 여행', place: '✈️ 모임·여행',
-      story: '축제 날의 인파, 공항의 북적임. 사람이 많을수록 거짓말은 숨기 쉽다. 표를 한 칸도 빼먹지 마라.',
+      story: '축제 날의 인파, 공항의 북적임. 사람이 많을수록 거짓말은 숨기 쉽다. 이제 조사할 수 있는 횟수도 빠듯하다.',
       clear: '공항 CCTV에 그림자의 뒷모습이 찍혔다. 마지막 카드: "온라인에서 기다릴게. 진짜 실력을 보여 줘."',
-      stages: [{ c: 'case-007', t: ESCAPE, lv: 2 }, { c: 'case-016', t: ALIBI, lv: 2 }, { c: 'case-013', t: ESCAPE, lv: 2 }, { c: 'case-015', t: ALIBI, lv: 2, boss: true }],
+      stages: [{ c: 'case-007', lv: 2 }, { c: 'case-016', lv: 2 }, { c: 'case-013', lv: 3 }, { c: 'case-015', lv: 3, boss: true }],
     },
     {
       id: 'c5', title: '5장 · 그림자의 정체', place: '🎮 온라인',
-      story: '그림자는 게임 길드에 숨어 있다. 이번엔 범행 시각마저 숨겨져 있다. 누가, 그리고 언제 — 둘 다 맞혀야 한다.',
-      clear: '마지막 알리바이가 무너졌다. 그림자의 정체는… 늘 사건 파일을 건네던 소장님. "네가 명탐정이 될 수 있는지 시험해 본 거야. 합격이다, 명탐정."',
-      stages: [{ c: 'case-012', t: ALIBI, lv: 2 }, { c: 'case-001', t: ALIBI, lv: 3 }, { c: 'case-010', t: ALIBI, lv: 3 }, { c: 'case-012', t: ALIBI, lv: 3, boss: true }],
+      story: '그림자는 게임 길드에 숨어 있다. 마지막 대결. 단서는 적고, 조사할 기회도 적다. 한 번의 추리로 끝내야 한다.',
+      clear: '마지막 거짓말이 무너졌다. 그림자의 정체는… 늘 사건 파일을 건네던 소장님. "네가 명탐정이 될 수 있는지 시험해 본 거야. 합격이다, 명탐정."',
+      stages: [{ c: 'case-012', lv: 3, boss: true }],
     },
   ];
-  CHAPTERS.forEach((ch, ci) => ch.stages.forEach((st, si) => { st.id = `${ch.id}-${si + 1}`; st.ci = ci; st.si = si; st.n = 0; }));
+  CHAPTERS.forEach((ch, ci) => ch.stages.forEach((st, si) => { st.id = st.c; st.t = SCENE; st.ci = ci; st.si = si; st.n = 0; }));
   const ALL = CHAPTERS.flatMap(ch => ch.stages);
   ALL.forEach((st, k) => { st.n = k; });
 
@@ -63,11 +69,11 @@
   }
   const rankOf = L => RANKS.filter(([l]) => L >= l).pop()[1];
   const PERKS = [
-    { id: 'lens', icon: '🔍', name: '돋보기', max: 2, text: r => `알리바이 힌트 감점 15 → ${15 - 5 * r}점` },
-    { id: 'gut', icon: '🔮', name: '직감', max: 2, text: r => `알리바이 사건을 시작할 때 결백한 사람 ${r}명이 미리 보인다 (감점 없음)` },
-    { id: 'calm', icon: '🛡', name: '침착함', max: 1, text: () => '알리바이 지목 기회 2번 → 3번' },
-    { id: 'torch', icon: '🔦', name: '예비 배터리', max: 2, text: r => `방탈출 배터리 +${3 * r}` },
-    { id: 'note', icon: '📓', name: '꼼꼼한 수첩', max: 1, text: () => '방탈출 단서 대조가 무료' },
+    { id: 'shoes', icon: '👟', name: '부지런한 발', max: 2, text: r => `조사 횟수 +${3 * r}` },
+    { id: 'lens', icon: '🔍', name: '돋보기', max: 1, text: () => '단서가 숨은 장소가 반짝인다' },
+    { id: 'gut', icon: '🔮', name: '직감', max: 1, text: () => '결백한 사람 한 명이 처음부터 수첩에 ✅ 로 표시된다' },
+    { id: 'calm', icon: '🛡', name: '침착함', max: 2, text: r => `신뢰(❤️) +${r} — 추리를 틀려도 버틴다` },
+    { id: 'dog', icon: '🐕', name: '콩이 훈련', max: 2, text: r => `조수 콩이의 힌트 ${r}번은 별을 깎지 않는다` },
     { id: 'fame', icon: '⭐', name: '명성', max: 2, text: r => `얻는 경험치 +${15 * r}%` },
   ];
   const STAR_K = [0, 0.6, 0.8, 1];
@@ -96,7 +102,7 @@
   const MODE = {
     id: 'career',
     name: '명탐정의 길',
-    desc: '혼자 하는 모험. 수습 탐정으로 시작해 사건을 하나씩 깨며 레벨을 올리고 능력을 배운다. 5장 21사건 + 오늘의 의뢰.',
+    desc: '혼자 하는 모험. 사건 현장을 조사해 단서를 모으고, 거짓말을 증거로 무너뜨린다. 레벨을 올리고 능력을 배우며 5장 17사건 + 오늘의 의뢰.',
     ready: true,
     pickCase: false,
     start(root) {
@@ -215,27 +221,25 @@
       }
 
       // ---------- 출동 전 브리핑 ----------
-      function perkLines(t) {
-        const lines = t === ALIBI
-          ? [rank('lens') && `🔍 힌트 -${15 - 5 * rank('lens')}점`, rank('gut') && `🔮 결백한 사람 ${rank('gut')}명이 미리 보임`, rank('calm') && '🛡 지목 기회 3번']
-          : [rank('torch') && `🔦 배터리 +${3 * rank('torch')}`, rank('note') && '📓 단서 대조 무료'];
-        return lines.filter(Boolean);
+      function perkLines() {
+        return [
+          rank('shoes') && `👟 조사 +${3 * rank('shoes')}`, rank('lens') && '🔍 단서 장소 반짝임', rank('gut') && '🔮 결백한 사람 1명 표시',
+          rank('calm') && `🛡 신뢰 +${rank('calm')}`, rank('dog') && `🐕 무료 힌트 ${rank('dog')}번`,
+        ].filter(Boolean);
       }
       function briefing(st, quest = null) {
         const C = caseOf(st);
         if (!C) return DO.toast('사건 파일을 찾지 못했습니다.');
         const b = quest ? 0 : D.best[st.id] | 0;
-        const perks = perkLines(st.t);
+        const perks = perkLines();
         const xp = Math.round(baseXP(st) * (1 + 0.15 * rank('fame')));
         render(root,
-          st.boss ? h('div', { class: 'boss-banner' }, '👑 보스 사건 — 그림자의 흔적') : null,
+          st.boss ? h('div', { class: 'boss-banner' }, '👑 보스 사건 — 범인이 한 번 버틴다. 거짓말 두 개를 모두 찔러라') : null,
           h('h2', {}, C.title),
           h('div', { class: 'card' }, h('p', {}, C.intro)),
           h('div', { class: 'card' },
             h('p', {}, h('b', {}, `${TYPE[st.t].icon} ${TYPE[st.t].name}`), ` · 난이도 ${LV[st.t][st.lv]}`),
-            h('p', { class: 'muted small-text' }, st.t === ALIBI
-              ? '시간대별 진술표에서 단 한 명의 거짓말을 찾는다. 100점에서 시작, 85점 이상이면 ★3.'
-              : '현장을 뒤져 진술서와 단서를 모으고 범인을 지목한다. 배터리를 절반 이상 남기면 ★3.'),
+            h('p', { class: 'muted small-text' }, `${LV_DESC[st.lv]}. 장소를 조사해 단서를, 사람과 이야기해 진술을 모은 뒤 범인의 거짓말을 증거로 무너뜨린다. 남은 신뢰 ❤️ 만큼 별.`),
             h('p', { class: 'muted small-text' }, `보상: 최대 ${xp} XP${quest ? '' : b ? ` · 최고 기록 ${starText(b)}` : ''}`),
             perks.length ? h('p', { class: 'small-text' }, '적용 능력: ', perks.join(' · ')) : null),
           h('button', { class: 'primary', onClick: () => play(st, quest) }, st.boss ? '👑 출동' : '🚀 출동'),
@@ -243,18 +247,19 @@
         );
       }
 
-      // ---------- 사건 진행 (알리바이/방탈출 모드를 빌려 쓴다) ----------
+      // ---------- 사건 진행 (js/investigate.js) ----------
       function play(st, quest) {
-        const mode = DO.modes.find(m => m.id === st.t);
         const C = caseOf(st);
         const onDone = res => { if (DO.enterMode) DO.enterMode(MODE); if (DO.music) DO.music.base('lobby'); reward(st, res || {}, quest); };
-        const preset = st.t === ALIBI
-          ? { level: st.lv, variant: 300 + st.n * 17 + (quest ? 0 : (D.plays[st.id] | 0)), hintCost: 15 - 5 * rank('lens'), chances: 2 + rank('calm'), freeHints: rank('gut'), onDone }
-          : { level: st.lv, batteryBonus: 3 * rank('torch'), freeCompare: rank('note') > 0, onDone };
-        if (!quest) { D.plays[st.id] = (D.plays[st.id] | 0) + 1; save(D); }
-        if (DO.enterMode) DO.enterMode(mode);
-        if (DO.music) DO.music.startGame(mode.id);
-        try { mode.start(root, { case: C, preset }); } catch (e) { console.error(e); onDone({ win: false, stars: 0 }); }
+        const variant = quest ? 0 : (D.plays[st.id] | 0);   // 다시 하면 단서 위치·진술 순서가 바뀐다
+        if (!quest) { D.plays[st.id] = variant + 1; save(D); }
+        try {
+          DO.investigate(root, C, {
+            level: st.lv, variant, boss: !!st.boss,
+            actionsBonus: 3 * rank('shoes'), heartsBonus: rank('calm'), lens: rank('lens') > 0, gut: rank('gut') > 0, freeHints: rank('dog'),
+            onDone,
+          });
+        } catch (e) { console.error(e); onDone({ win: false, stars: 0 }); }
       }
 
       // ---------- 보상 ----------
@@ -339,7 +344,7 @@
       function questList() {
         const L = levelOf(D.xp).L;
         const used = new Set();
-        return [ALIBI, ESCAPE, ALIBI].map((t, slot) => {
+        return [SCENE, SCENE, SCENE].map((t, slot) => {
           // 생성 사건 재료가 많지 않아 씨앗이 달라도 같은 사건이 나올 수 있다 → 제목이 겹치지 않을 때까지 소금을 바꾼다
           let C = null;
           for (let salt = 0; DO.generateCase && salt < 30; salt++) {
@@ -347,7 +352,7 @@
             if (!used.has(C.title)) break;
           }
           if (C) used.add(C.title);
-          const lv = t === ALIBI ? Math.min(3, Math.floor((L - 1) / 3)) : Math.min(2, Math.floor((L - 1) / 4));
+          const lv = Math.min(3, Math.floor((L - 1) / 3));
           return { st: { id: `q-${slot}`, case: C, t, lv, n: 90 + slot, ci: 0, si: 0 }, slot };
         });
       }

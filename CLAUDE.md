@@ -20,7 +20,7 @@
 
 ## 파일 구조
 ```
-index.html            스크립트 로드 순서: core → portrait → sfx → music → fx → alibi-engine → cases → modes → guide → app
+index.html            스크립트 로드 순서: core → portrait → sfx → music → fx → investigate → alibi-engine → cases → modes → guide → app
 style.css
 js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/render() DOM 헬퍼, rng(seed), shuffle, store(localStorage),
                       nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막)
@@ -43,6 +43,8 @@ js/music.js           배경음 10곡. 분위기 → 곡: lobby(시간대별: �
                       헤더 🔊 = 소리 설정 팝업(배경음 켜기·크기, 효과음 켜기, 지금 곡 이름 — do:music, do:musicVol, do:sound). DO.music.render(곡, 초, {lvl}) = 오프라인 렌더(검사용).
 js/fx.js              가벼운 화면 효과. DO.fx.ending(win)(결과 화면: 배경음 result + 승리면 꽃가루·팡파르, 아니면 미제 소리·흔들기), win(), good(el, 소리), fail(el, 소리), count(el, n)(숫자 세기),
                       DO.toast(msg)(alert 대신 화면 아래 쪽지). 움직임 줄이기 설정이면 효과를 생략한다.
+js/investigate.js     현장 수사 엔진(명탐정의 길의 사건 진행). DO.investigate(root, C, opt) — 도입 영상 → 배경 그림 속 장소·사람 조사(수첩 자동 기록)
+                      → 추리(범인 → 거짓말 → 증거, "이의 있음!") → 자백 영상 → 결과. 배경 그림은 ART[테마](밤/낮), 테마는 category 또는 장소 이름으로.
 js/alibi-engine.js    알리바이 깨기 엔진(DOM 없음): 퍼즐 생성기 + 유일해 검증기. DO.alibi.generate(C, level, variant) / solve / feasible / describe
 js/guide.js           온보딩: 설명 시트(오버레이), 앱 소개/용어 사전, 모드별 설명 GUIDES(meta: 인원/시간/난이도/분류 포함).
                       DO.openGuide(id), DO.openAppGuide(), DO.modeMeta(id). 모드를 추가하면 여기에 항목도 추가.
@@ -53,7 +55,7 @@ img/guide/<id>-N.jpg  설명 시트에 들어가는 예시 화면 (모바일 뷰
 js/modes/fold.js      모드 1 용의자 접기
 js/modes/forehead.js  모드 2 이마 게임
 js/modes/blind-fold.js  모드 6 이마 접기 (접기 + 이마 게임 결합)
-js/modes/career.js    모드 8 명탐정의 길 (탐정증·레벨·능력·장 지도·보스·오늘의 의뢰). 사건은 alibi/escape 를 ctx.preset 으로 빌려 쓴다
+js/modes/career.js    모드 8 명탐정의 길 (탐정증·레벨·능력·장 지도·보스·오늘의 의뢰). 사건은 js/investigate.js 의 현장 수사로 진행
 js/modes/alibi.js     모드 7 알리바이 깨기 (진술표 · 증거 카드 · 지도 · 재연)
 js/modes/ai-interrogation.js  모드 3 AI 심문 (Anthropic API 직접 호출, 스트리밍)
 js/modes/daily.js     모드 4 일일 사건. DO.generateCase(seed), DO.todaySeed() 도 여기서 등록
@@ -127,14 +129,21 @@ DO.registerCase({
   전설(level 3): `p.hidden`, 시각 후보 `p.window`(연속 3칸, 가운데 칸이 사건 소개의 "N시"). 후보는 (용의자, 시각) 쌍이고 `solvePairs` 로 정답 쌍 하나만 남는지 확인한다. "범행 시각의 현장에는 범인 혼자" 규칙 때문에 결백한 사람이 현장에 있던 칸은 범행 시각이 될 수 없다. 틀린 시각마다 `p.timeCores`(그 시각을 지우는 제약 묶음 + 그 시각 현장에 있던 사람)를 만들어 힌트·해설에 쓴다. 화면에서는 시간 머리에 "후보", 지목할 때 시각 칩도 고른다. 사람은 맞고 시각이 틀리면 오판 1회 + 그 시각 제외. 힌트는 시각부터. 증거는 탐욕 선택(입문 = 가장 많이 지우는 카드, 어려움 = 가장 조금 지우는 카드) 후 불필요한 카드를 빼고 무해한 카드 1~2장을 섞는다.
   화면: 진술표(칸 = 장소 색 + 그림) → 장소 범례 → 대조 창(카드를 누르면 진술표로 센 숫자와 비교해 ✅/⚠️ 만 알려 줌, 누가 거짓인지는 안 알려 줌) → 증거 카드 가로 줄 → 지도(시간 칩으로 진술상 위치 확인). 보드는 한 번 만들고 `update()` 로 클래스만 바꾼다(카드 줄 스크롤 유지).
   100점 시작, 힌트 -15(엔진의 core 로 한 명의 결백을 증명), 오판 -30, 기회 2번. 결과: 도장 + 재연(진짜 동선을 지도에서 1.2초 간격 재생) + 전원 해설. 최고 기록 `do:alibi:best:<caseId>:<level>`, 판 번호 `do:alibi:v:<caseId>`, 난이도 `do:alibi:level`.
-- **명탐정의 길**(career.js): 혼자 하는 모험. `CHAPTERS` = 5장 21사건(장마다 마지막이 보스 👑). 사건 = { c: 사건 id, t: 'alibi'|'escape', lv, boss }.
-  앞 사건을 깨야 다음 사건, 앞 장 보스를 깨야 다음 장이 열린다. 장 소개 이야기(story)와 보스를 잡으면 나오는 '그림자의 검은 카드'(clear) — 그림자의 정체는 마지막 장에서 밝혀진다.
-  사건 실행: `mode.start(root, { case, preset })`. alibi preset = { level, variant(300 + 사건 번호×17 + 도전 횟수 — 다시 하면 새 타임라인), hintCost, chances, freeHints, onDone },
-  escape preset = { level, batteryBonus, freeCompare, onDone }. preset 이 있으면 두 모드 모두 소개/난이도 화면을 건너뛰고, 결과 화면 버튼이 "수첩으로 돌아가기"(onDone({win, score?, stars}))로 바뀐다. 각 모드의 자체 기록은 건드리지 않는다.
+- **명탐정의 길**(career.js + investigate.js): 혼자 하는 모험. `CHAPTERS` = 5장 17사건(사건마다 한 번씩, 장마다 마지막이 보스 👑). 사건 = { c: 사건 id, lv 0~3, boss }.
+  앞 사건을 깨야 다음 사건, 앞 장 보스를 깨야 다음 장. 장 이야기(story)와 보스를 잡으면 나오는 '그림자의 검은 카드'(clear).
+  사건 진행 = 현장 수사(`DO.investigate`). 사건 데이터에서 바로 만든다:
+    진술 = 조건 주제에 대한 주장 `claims(s, tag) = traits.includes(tag) !== lies.includes(tag)` 를 "○○한 사람, 그건 저예요 / 그건 제가 아니에요" 로 말한다.
+    처음 대화(알리바이)는 모두 2~3마디로 겉보기가 같다: 범인 = 폭로 가능한 거짓말 주제(lieTags) + 사실 1, 나머지 = 단서 주제 1~2 + 자기 일 1. 단서를 보여 주면 그 주제에 대한 주장을 하나 더 말한다.
+    장소 = scene.spots(4~5곳, SLOTS 위치)에 단서 3장과 잡동사니를 씨앗(`inv:<caseId>:<variant>`, variant = 도전 횟수)으로 숨긴다.
+    정답 = 범인 + 거짓말 주제 T 의 진술 + exposes === T 인 단서. 틀리면 신뢰 ❤️ -1(0 이면 실패). 보스는 lieTags 두 개를 다 찔러야 한다(첫 번째 뒤 '반격').
+    난이도(LEVELS): 조사 횟수 ∞/16/13/11(보스 +2), 단서의 "관련 이야기" 표시는 0~1 만. 조수 콩이 힌트 = 다음에 볼 곳/들을 사람/수첩 주제(별 -1, 무료 횟수는 능력).
+    별 = min(3, 남은 신뢰) - 유료 힌트(최소 1). 연출: 레터박스·카메라 이동·타자 내레이션·용의자 등장, 조사 시 카메라 확대 + 돋보기, 단서 클로즈업, 대화는 비주얼 노벨(흐린 배경 + 얼굴 + 말풍선),
+    "이의 있음!" 터짐 + 흰 번쩍임 + 거짓말에 줄 + 증거 쾅 + 범인 흔들림, 자백은 범인의 비밀 프로필을 1인칭·말투로 바꿔서(받침 ㅆ + 다. → 어요.).
   경험치 = (40 + 30×난이도 + 보스 60) × 별 계수(★1 0.6 / ★2 0.8 / ★3 1.0) × 명성. 다시 깨면 별이 오른 만큼(최소 15%), 실패 10. 레벨 L→L+1 에 100+60(L-1), 최고 15. 칭호 RANKS.
-  능력(PERKS, 레벨마다 포인트 1, 언제든 되돌리기 가능): 돋보기(힌트 감점 -5/랭크), 직감(결백한 사람 미리 공개), 침착함(지목 기회 +1), 예비 배터리(+3/랭크), 꼼꼼한 수첩(대조 무료), 명성(경험치 +15%/랭크).
-  오늘의 의뢰: 날짜로 만든 생성 사건 3건(알리바이·방탈출·알리바이, 제목이 겹치지 않게 소금을 바꿈), 난이도는 레벨에 맞춰. 하나에 하루 한 번 보상.
-  저장 `do:career`(load() 에서 모양 검사). 홈 맨 위 카드에 바로가기 버튼(.career-cta). 21사건의 알리바이 퍼즐이 다시 하기 3번까지 전부 유일해인지 node 로 확인함.
+  능력(PERKS, 레벨마다 포인트 1, 언제든 되돌리기): 부지런한 발(조사 +3/랭크), 돋보기(단서 장소 반짝임), 직감(결백한 사람 1명 ✅), 침착함(신뢰 +1/랭크), 콩이 훈련(무료 힌트), 명성(경험치 +15%/랭크).
+  오늘의 의뢰: 날짜로 만든 생성 사건 3건(제목이 겹치지 않게 소금을 바꿈), 난이도 = 레벨에 맞춰. 하나에 하루 한 번 보상. 저장 `do:career`(load() 에서 모양 검사).
+  검사: 손으로 쓴 17사건 + 생성 사건 40개 모두 장면이 만들어지고 폭로 가능한 거짓말이 2개씩 있음(보스 가능)을 브라우저에서 확인. 이전 방식(알리바이 표·방탈출)은 사용자 피드백("글씨를 나열한 표 같다, 어렵다")으로 바꿨다.
+  alibi.js / escape.js 의 ctx.preset 통로는 그대로 남아 있다(지금은 안 씀).
 - **AI 심문**: 질문 예산은 소개 화면에서 10/15/20 선택(`localStorage(do:budget)`에 기억). 단서 열기도 1 소모. 응답은 SSE 스트리밍(`stream: true`, `content_block_delta` 의 `text_delta` 를 이어 붙임, `message_delta.stop_reason === 'refusal'` 이면 묵비 문구). 진행 중인 판은 `do:ai:<caseId>` 에 자동 저장되어 소개 화면에서 이어서 할 수 있고, 끝난 판은 `do:ai:done:<caseId>` 에 남아 "지난 심문 기록 보기"로 본다. API 키는 `localStorage(do:apiKey)`에만 저장, 브라우저에서 `api.anthropic.com` 직접 호출(`anthropic-dangerous-direct-browser-access` 헤더). 기본 모델 `claude-opus-5-5`, `effort: low`. Opus/Sonnet엔 `fallbacks: "default"`. 프롬프트는 `buildSystem()` 한 곳에서만 만든다 — 설정 유출 금지, 범인은 체크리스트 기준으로 일관된 거짓말, 비범인은 솔직.
 - **일일 사건**: `generateCase(seed)`는 순수 함수(mulberry32). 재료는 `SETTINGS/ROLES/PLACES/EXTRAS` 배열 — 여기에 항목만 추가하면 사건 다양성이 늘어난다. 오늘 씨앗 = `hash('daily:' + YYYY-MM-DD)`.
 - **방탈출**: 비밀 정보 없는 협동 모드(폰 하나를 같이 봄). 방 배치 씨앗 = `hash('escape:' + case.id)`. 뒤질 곳 = 용의자 수(진술서) + 단서 2 + 자물쇠 힌트 1 + 잡동사니 2 + 잠긴 상자 1.
@@ -155,7 +164,7 @@ DO.registerCase({
 - 브라우저: 7개 모드 전부 localhost:8765 에서 한 판씩 눌러 확인함. 알리바이 깨기는 대조·힌트·오판·검거·실패·재연·새 타임라인·일일 사건, 전설의 시각 오판·시각 힌트·시각 해설까지 확인. 소리는 실제 입력으로 깨운 뒤 분위기 전환(홈→사건 선택→게임→지목→되돌아감→결과→홈)·설정 팝업·duck 을 확인했고, 오프라인 렌더로 크기·깨짐·NaN 을 쟀다. 실제로 귀로 듣는 확인은 아직 못 함. AI 심문은 `fetch` 를 가짜 SSE 스트림으로 바꿔 스트리밍 파서·저장·이어하기·기록까지 확인했고, 실제 Anthropic 서버 호출만 키가 없어 미확인.
 
 ## 다음 할 일
-- [ ] 명탐정의 길: 6장 이후(새 사건이 늘면 장 추가), 업적/도감(만난 용의자 얼굴 모음), 능력 더 다양하게.
+- [ ] 명탐정의 길: 실제로 해 본 사람의 체감 난이도 확인. 6장 이후(새 사건이 늘면 장 추가), 업적/도감, 배경 그림 종류 더(병원·호텔·캠핑을 따로).
 - [ ] 알리바이 깨기: 공범 변형(거짓말쟁이 2명) 검토. 검증기의 후보를 용의자 쌍으로 넓혀야 한다.
 - [ ] 알리바이 깨기: 사건의 프로필 문장과 타임라인이 따로 논다. 사건 데이터에 장소·시간 정보를 넣어 연결하는 방안 검토.
 - [ ] 사건 더 작성 (`data/cases/`) — 아직 없는 배경: 놀이공원, 지하철, PC방, 농구 대회 등. 자물쇠 번호가 겹치지 않게 조건 순서를 조정할 것(check-cases 출력 확인)
