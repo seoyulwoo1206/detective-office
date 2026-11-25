@@ -23,7 +23,9 @@
 index.html            스크립트 로드 순서: core → portrait → sfx → music → fx → investigate → alibi-engine → cases → modes → guide → app
 style.css
 js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/render() DOM 헬퍼, rng(seed), shuffle, store(localStorage),
-                      nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막)
+                      nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막),
+                      josa(단어, '이/가' | '은/는' | '을/를' | '과/와' | '으로/로') — 이름 뒤 조사는 "이(가)" 대신 반드시 이걸로(끝 괄호 건너뜀, 숫자도 읽는 소리로).
+                      시각("3:00" = 세 시)은 읽는 소리가 달라서 alibi.js 의 tJosa 를 쓴다.
 js/portrait.js        절차적 초상화. DO.portrait(seed, name, size), DO.face(C, suspect, size) → <span class="portrait">(SVG).
                       웹툰풍 반실사: 피부·옷·머리 그라데이션, 눈(홍채 그라데이션·반사광·속눈썹·쌍꺼풀), 앞머리 가닥(fringePath)·머릿결·윤기, 얼굴 옆으로 내려오는 머리.
                       씨앗이 같으면 같은 얼굴. 이름 속 단어로 나이대(child/teen/adult/elder)·성별 느낌·머리 모양·모자·안경·옷(교복 재킷+넥타이/리본, 정장, 작업복, 간호복, 카디건, 티·후드·니트)을 맞춘다.

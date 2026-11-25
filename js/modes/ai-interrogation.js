@@ -309,7 +309,7 @@ ${known}
         function drawChat() {
           const msgs = chats[current.id];
           render(chatBox,
-            msgs.length ? null : h('div', { class: 'bubble sys' }, `${current.name}이(가) 당신 앞에 앉아 있다.`),
+            msgs.length ? null : h('div', { class: 'bubble sys' }, `${DO.josa(current.name, '이/가')} 당신 앞에 앉아 있다.`),
             msgs.map(m => h('div', { class: 'bubble ' + (m.role === 'user' ? 'me' : 'them') }, m.text)),
           );
           chatBox.scrollTop = chatBox.scrollHeight;
@@ -417,7 +417,7 @@ ${known}
         render(root,
           h('h2', {}, win ? '🎉 사건 해결!' : '❌ 오답'),
           h('div', { class: 'card ' + (win ? 'good' : 'alert') },
-            h('p', {}, h('b', {}, win ? `${culprit.name}이(가) 범인이었습니다.` : `${target.name}은(는) 범인이 아닙니다. 진짜 범인은 ${culprit.name}.`)),
+            h('p', {}, h('b', {}, win ? `${DO.josa(culprit.name, '이/가')} 범인이었습니다.` : `${DO.josa(target.name, '은/는')} 범인이 아닙니다. 진짜 범인은 ${culprit.name}.`)),
             h('p', { class: 'muted' }, `질문 ${used}개 사용 · 단서 ${revealedClues.length}장 확보`),
           ),
           h('h3', {}, '전원 프로필'),

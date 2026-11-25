@@ -169,8 +169,22 @@ window.DO = (() => {
     if (DO.music) DO.music.hold('hush'); // 폰을 넘기는 동안 배경음이 벽 너머처럼 먹먹해진다
   }
 
+  // 조사 붙이기: josa('아빠', '이/가') → '아빠가', josa('도서부', '은/는') → '도서부는', josa('교실', '으로/로') → '교실로'.
+  // 끝의 괄호·공백은 건너뛰고 마지막 한글(또는 숫자)의 받침을 본다. 판단할 수 없으면(영문 등) '이(가)' 꼴로.
+  const NUM_BATCHIM = { 0: 21, 1: 8, 2: 0, 3: 16, 4: 0, 5: 0, 6: 1, 7: 8, 8: 8, 9: 0 };   // 영 일 이 삼 사 오 육 칠 팔 구
+  function josa(word, pair) {
+    const w = String(word);
+    const [a, b] = pair.split('/');
+    const m = w.match(/([가-힣0-9])[^가-힣0-9]*$/);
+    if (!m) return `${w}${a}(${b})`;
+    const ch = m[1];
+    const jong = /[0-9]/.test(ch) ? NUM_BATCHIM[ch] : (ch.charCodeAt(0) - 0xAC00) % 28;
+    if (a === '으로') return w + (jong === 0 || jong === 8 ? '로' : '으로');
+    return w + (jong ? a : b);
+  }
+
   return {
     modes, registerMode, registerCase, listCases, getCase, loadCase,
-    h, render, shuffle, pick, rng, hashString, store, tagText, nameEntry, handOff,
+    h, render, shuffle, pick, rng, hashString, store, tagText, nameEntry, handOff, josa,
   };
 })();

@@ -197,7 +197,7 @@
         const who = ownerName(sp);
         if (who) {
           // 역할 분담: 담당자에게 폰을 넘긴 뒤 뒤진다
-          return DO.handOff(root, who, `${sp.emoji} ${sp.name}은(는) ${who}님 담당입니다. 본인이 직접 뒤지세요.`, () => search(sp));
+          return DO.handOff(root, who, `${sp.emoji} ${DO.josa(sp.name, '은/는')} ${who}님 담당입니다. 본인이 직접 뒤지세요.`, () => search(sp));
         }
         search(sp);
       }
@@ -253,7 +253,7 @@
         // 뒤지는 소리(rummage) 뒤에 무엇을 찾았는지 소리로
         if (fresh && DO.sfx) DO.sfx({ statement: 'paper', clue: 'reveal', hint: 'reveal', junk: 'empty' }[sp.item.kind] || 'paper', { delay: 0.32 });
         render(root,
-          h('p', { class: 'muted small-text' }, `${sp.emoji} ${sp.name}${fresh ? '을(를) 뒤졌다.' : ' (다시 보기)'} · 🔦 ${battery}`),
+          h('p', { class: 'muted small-text' }, `${sp.emoji} ${fresh ? DO.josa(sp.name, '을/를') + ' 뒤졌다.' : sp.name + ' (다시 보기)'} · 🔦 ${battery}`),
           itemView(sp.item),
           fresh && dead() ? h('div', { class: 'card alert' }, h('p', {}, '배터리가 다 됐습니다. 이제 범인을 지목해야 합니다.')) : null,
           h('button', { class: 'primary', onClick: () => roomScreen() }, '방으로 돌아가기'),
@@ -354,7 +354,7 @@
           h('h2', {}, '🎯 범인은…'),
           h('p', { class: 'muted' }, '기회는 한 번. 다 같이 합의하고 누르세요.'),
           C.suspects.map(s => h('button', { onClick: () => {
-            if (confirm(`${s.name}을(를) 범인으로 지목합니까?`)) finish(s);
+            if (confirm(`${DO.josa(s.name, '을/를')} 범인으로 지목합니까?`)) finish(s);
           } }, s.name)),
           h('button', { onClick: () => roomScreen() }, '돌아가기'),
         );
@@ -370,7 +370,7 @@
           h('h2', {}, win ? '🎉 탈출 성공!' : '❌ 탈출 실패'),
           h('div', { class: 'card ' + (win ? 'good' : 'alert') + ' center' },
             h('div', { class: 'big' }, win ? '⭐'.repeat(stars) : '🔒'),
-            h('p', {}, h('b', {}, win ? `${culprit.name}이(가) 범인이었습니다.` : `${target.name}은(는) 범인이 아닙니다. 진짜 범인은 ${culprit.name}.`)),
+            h('p', {}, h('b', {}, win ? `${DO.josa(culprit.name, '이/가')} 범인이었습니다.` : `${DO.josa(target.name, '은/는')} 범인이 아닙니다. 진짜 범인은 ${culprit.name}.`)),
             h('p', { class: 'muted' }, `난이도 ${level.label} · 남은 배터리 ${battery}/${level.battery} · 단서 ${foundClues().length}/${C.clues.length} · 진술서 ${foundStatements().length}/${C.suspects.length}`),
             players ? h('p', { class: 'muted small-text' }, '뒤진 곳: ' + players.map((n, i) => `${n} ${room.spots.filter(sp => sp.owner === i && sp.searched).length}곳`).join(' · ')) : null,
           ),

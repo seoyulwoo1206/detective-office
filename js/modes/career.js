@@ -302,7 +302,7 @@
             h('h3', {}, `🎉 레벨 업! Lv ${before.L} → ${after.L}`),
             h('p', {}, `능력 포인트 +${up}`, newRank ? h('span', {}, ' · 새 칭호 ', h('b', {}, newRank)) : null)) : null,
           bossClear ? h('div', { class: 'card calling-card' }, h('p', {}, ch.clear), h('div', { class: 'cc-sign' }, '— 🃏 그림자의 흔적')) : null,
-          chOpened.map(c => h('div', { class: 'card good' }, h('p', {}, `🔓 ${c.title} 이(가) 열렸습니다!`))),
+          chOpened.map(c => h('div', { class: 'card good' }, h('p', {}, `🔓 ${DO.josa(c.title, '이/가')} 열렸습니다!`))),
           !chOpened.length && opened.length ? h('p', { class: 'muted' }, `🔓 다음 사건이 열렸습니다.`) : null,
           !quest && nx ? h('button', { class: 'primary', onClick: () => briefing(nx) }, `▶ 다음 사건${nx.boss ? ' 👑' : ''}`) : null,
           !quest && !stars ? h('button', { class: nx === st ? '' : 'primary', onClick: () => briefing(st) }, '🔁 다시 도전') : null,

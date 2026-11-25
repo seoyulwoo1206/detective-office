@@ -45,6 +45,8 @@
 
       const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
       const name = i => p.suspects[i].name;
+      // 시각은 읽는 소리로 조사를 고른다: 3:00 = "세 시"(받침 없음), 2:50 = "…분"(받침 있음)
+      const tJosa = (t, pair) => t + pair.split('/')[t.endsWith(':00') ? 1 : 0];
       const face = (i, size) => DO.face(C, p.suspects[i], size);
       const num = i => h('span', { class: 'num', style: `background:${TOKEN[i]}` }, String(i + 1));
       const short = pl => (pl.scene ? '현장' : pl.name.slice(0, 3));
@@ -232,7 +234,7 @@
           if (item.type === 'time') {
             const tc = p.timeCores.find(x => x.t === item.t);
             return h('div', { class: 'card good' },
-              h('p', {}, '💡 ', h('b', {}, `범행 시각은 ${p.times[tc.t]}이 아니다.`), ' 그 시각이라면 누가 범인이어도 아래와 동시에 성립할 수 없다.'),
+              h('p', {}, '💡 ', h('b', {}, `범행 시각은 ${tJosa(p.times[tc.t], '이/가')} 아니다.`), ' 그 시각이라면 누가 범인이어도 아래와 동시에 성립할 수 없다.'),
               tc.witnesses.length ? h('p', { class: 'muted' }, `🚨 ${p.times[tc.t]}에 현장에 있었다고 진술한 사람: ${who(tc.witnesses)}. 범행 시각의 현장에는 범인 혼자여야 한다.`) : null,
               tc.core.map(cardLine),
             );
@@ -450,7 +452,7 @@
             h('h3', {}, `⏱ 해설 — 왜 ${p.times[p.tStar]}인가`),
             p.timeCores.map(tc => h('div', { class: 'card explain' },
               h('div', { class: 'grow' },
-                h('p', {}, h('b', {}, `${p.times[tc.t]}은 아니다`), ' — 그 시각이 범행 시각이라면 누가 범인이어도 아래와 함께 성립할 수 없다.'),
+                h('p', {}, h('b', {}, `${tJosa(p.times[tc.t], '은/는')} 아니다`), ' — 그 시각이 범행 시각이라면 누가 범인이어도 아래와 함께 성립할 수 없다.'),
                 tc.witnesses.length ? h('p', { class: 'muted small-text' }, `🚨 ${p.times[tc.t]}에 현장에 있었다고 진술한 사람: ${who(tc.witnesses)}. 범행 시각의 현장에는 범인 혼자여야 한다.`) : null,
                 tc.core.map(c => { const d = A.describe(p, c); return h('p', { class: 'muted small-text' }, `${d.icon} ${c.by != null ? name(c.by) + '의 증언: ' : d.title + ': '}${d.text}`); })))),
           ] : null,
@@ -458,7 +460,7 @@
           p.cores.map(co => h('div', { class: 'card explain' },
             face(co.i, 40),
             h('div', { class: 'grow' },
-              h('p', {}, h('b', {}, `${CIRC[co.i]} ${name(co.i)}`), ` — 거짓말쟁이라면 ${p.times[p.tStar]}에 현장에 있었어야 한다. 그러면 아래${co.core.length > 1 ? ' 둘 이상' : ''}과 함께 성립할 수 없다.`),
+              h('p', {}, h('b', {}, `${CIRC[co.i]} ${name(co.i)}`), ` — 거짓말쟁이라면 ${p.times[p.tStar]}에 현장에 있었어야 한다. 그러면 아래${co.core.length > 1 ? ' 둘 이상과' : '와'} 함께 성립할 수 없다.`),
               co.core.map(c => { const d = A.describe(p, c); return h('p', { class: 'muted small-text' }, `${d.icon} ${c.by != null ? name(c.by) + '의 증언: ' : d.title + ': '}${d.text}`); })))),
           P ? h('button', { class: 'primary', onClick: () => P.onDone({ win, score: final, stars: win ? stars(final) : 0 }) }, '📒 수첩으로 돌아가기') : [
             h('button', { class: 'primary', onClick: () => { variant++; store.set('alibi:v:' + C.id, variant); begin(); } }, '🔁 같은 사건, 새 타임라인'),

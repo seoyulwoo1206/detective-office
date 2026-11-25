@@ -163,7 +163,7 @@
     const marks = {}; sus.forEach(s => { marks[s.id] = 0; });    // 0 없음, 1 결백, 2 의심
     const hits = new Set();                   // 찌른 모순(주제)
     let log = '어디부터 조사할까? 그림 속 장소나 사람을 눌러 보세요.';
-    if (opt.gut) { const inn = shuffle(sus.filter(s => s !== culprit), R)[0]; if (inn) { marks[inn.id] = 1; log = `🔮 직감: ${inn.name}은(는) 왠지 결백해 보인다. (수첩에 ✅)`; } }
+    if (opt.gut) { const inn = shuffle(sus.filter(s => s !== culprit), R)[0]; if (inn) { marks[inn.id] = 1; log = `🔮 직감: ${DO.josa(inn.name, '은/는')} 왠지 결백해 보인다. (수첩에 ✅)`; } }
 
     const face = (s, size) => DO.face(C, s, size);
     const nameOf = s => s.name;
@@ -331,7 +331,7 @@
         const text = tag
           ? (claims(s, tag) ? `이거요? …${clause(tag)} 사람, 그건 저 맞아요.` : `이게 저랑 무슨 상관이죠? ${clause(tag)} 사람은 제가 아니에요.`)
           : ['글쎄요, 처음 보는데요.', '그게 뭔데요? 모르겠어요.', '저랑은 상관없어 보이는데요.'][hashString(s.id + c.id) % 3];
-        log = st ? `🗂 ${s.name}에게 단서를 보여 줬다. 대답을 수첩에 적었다.` : `🗂 ${s.name}은(는) 그 단서를 모른다고 했다.`;
+        log = st ? `🗂 ${s.name}에게 단서를 보여 줬다. 대답을 수첩에 적었다.` : `🗂 ${DO.josa(s.name, '은/는')} 그 단서를 모른다고 했다.`;
         offered.splice(offered.indexOf(c), 1);
         typeInto(bubble, text).then(paint);
         paint();
@@ -343,7 +343,7 @@
           h('div', { class: 'vn-name' }, s.name)),
         bubble, choices);
       if (said) { bubble.textContent = said; paint(); }
-      else if (first) { typeInto(bubble, `(${s.name}이(가) 경계하는 눈빛으로 당신을 본다.)`).then(paint); paint(); }
+      else if (first) { typeInto(bubble, `(${DO.josa(s.name, '이/가')} 경계하는 눈빛으로 당신을 본다.)`).then(paint); paint(); }
       else { typeInto(bubble, `"또 뭐요?"`).then(paint); paint(); }
       sfx('select');
     }
@@ -449,7 +449,7 @@
       music('hold', 'pursuit');
       document.body.classList.add('flash');
       setTimeout(() => document.body.classList.remove('flash'), 450);
-      typeInto(cap, `${s.name}은(는) "${clause(st.tag)} 사람"에 대해 거짓말을 했다. 이 증거와 맞지 않는다!`);
+      typeInto(cap, `${DO.josa(s.name, '은/는')} "${clause(st.tag)} 사람"에 대해 거짓말을 했다. 이 증거와 맞지 않는다!`);
       function after() {
         if (hits.size < needHits) {
           // 보스의 반격
@@ -502,7 +502,7 @@
         h('div', { class: 'card' },
           lieTags.map(t => {
             const c = C.clues.find(x => x.exposes === t);
-            return h('p', {}, `· "${clause(t)} 사람" — ${culprit.name}은(는) ${claims(culprit, t) ? '맞다고' : '아니라고'} 했지만 거짓. 증거: ${c ? c.text : '-'}`);
+            return h('p', {}, `· "${clause(t)} 사람" — ${DO.josa(culprit.name, '은/는')} ${claims(culprit, t) ? '맞다고' : '아니라고'} 했지만 거짓. 증거: ${c ? c.text : '-'}`);
           })),
         h('button', { class: 'primary', onClick: () => opt.onDone && opt.onDone({ win, stars }) }, '📒 수첩으로 돌아가기'));
       if (DO.fx) DO.fx.ending(win);
