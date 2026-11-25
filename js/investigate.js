@@ -180,7 +180,18 @@
     const starsNow = () => Math.max(1, Math.min(3, hearts) - hintsUsed);
     const relatedLine = c => (lv.related && c.exposes && condOf(c.exposes) ? h('p', { class: 'muted small-text' }, `🔗 관련 이야기: "${clause(c.exposes)} 사람"`) : null);
 
-    if (DO.music) DO.music.base('think');
+    // 배경마다 다른 곡: 교실 = 초침, 골목 = 밤엔 빗소리 / 낮엔 취조실 블루스, 축제 = 파티 그루브, 가게 = 밤엔 어두운 방 / 낮엔 블루스,
+    // 여행 = 밤엔 빗소리 / 낮엔 보사노바, 온라인 = 사이버 아르페지오
+    const THEME_MUSIC = { school: 'think', town: night ? 'rainy' : 'interrogation', event: 'party', shop: night ? 'explore' : 'interrogation', travel: night ? 'rainy' : 'bossa', online: 'cyber' };
+    const music = (fn, ...a) => { if (DO.music && DO.music[fn]) DO.music[fn](...a); };
+    music('base', THEME_MUSIC[theme] || 'think');
+    music('intensity', opt.boss ? 1 : 0);
+    // 긴장도: 신뢰를 잃었거나 조사 횟수가 거의 없으면 곡에 층이 더해진다 (보스는 처음부터 한 단계)
+    const tension = () => {
+      const maxH = 3 + (opt.heartsBonus | 0);
+      const n = hearts <= 1 ? 2 : (hearts < maxH || (actions !== Infinity && actions <= 3)) ? 1 : 0;
+      music('intensity', Math.max(n, opt.boss ? 1 : 0));
+    };
 
     // ---------- 1. 도입 영상 ----------
     function opening() {
@@ -207,11 +218,12 @@
             h('div', { class: 'cine-name' }, C.title),
             h('div', { class: 'cine-place' }, `📍 ${(C.scene && C.scene.name) || '사건 현장'}`)));
           cap.textContent = '';
-          sfx(opt.boss ? 'stamp' : 'paper');
+          sfx(opt.boss ? 'bossOpen' : 'caseOpen');
         } else if (s.kind === 'lineup') {
           over.append(h('div', { class: 'lineup-cine' }, sus.map((x, i) => h('div', { class: 'lc', style: `animation-delay:${0.12 * i}s` }, face(x, sus.length > 5 ? 44 : 52), h('span', {}, nameOf(x))))));
           typeInto(cap, s.text);
           sfx('whoosh');
+          sus.forEach((_, i) => sfx('coin', { delay: 0.15 + 0.12 * i, step: i * 2 })); // 한 명씩 등장할 때마다 톡
         } else typeInto(cap, s.text);
         nextBtn.textContent = k === shots.length - 1 ? '🔍 수사 시작' : '▶ 다음';
       }
@@ -242,6 +254,7 @@
         class: 'hot-person' + (heard[s.id].length ? ' talked' : '') + (marks[s.id] === 1 ? ' cleared' : marks[s.id] === 2 ? ' sus' : ''),
         'data-quiet': '1', 'aria-label': s.name, onClick: () => talk(s),
       }, face(s, 40), h('span', {}, s.name)))));
+      tension();
       const canDeduce = found.length && sus.some(s => heard[s.id].length);
       render(root,
         hud(), stage,
@@ -259,7 +272,7 @@
       if (sp.searched) return scene(`${sp.emoji} ${sp.name}: 이미 조사한 곳이다.`);
       if (outOfTime()) { DO.toast('조사 횟수를 다 썼습니다. 추리를 시작하세요.'); return; }
       spend(); sp.searched = true;
-      sfx('rummage');
+      sfx('zoom'); sfx('rummage', { delay: 0.45 });
       cam.style.transformOrigin = `${sp.slot[0]}% ${sp.slot[1]}%`;
       cam.classList.add('zoom');
       cam.append(h('div', { class: 'magnifier', style: `left:${sp.slot[0]}%; top:${sp.slot[1]}%` }, '🔍'));
@@ -272,7 +285,7 @@
         const clues = [sp.item.clue, sp.item.extra].filter(Boolean);
         if (!clues.length) { sfx('empty'); return scene(`${sp.emoji} ${sp.name}: ${sp.item.junk}`); }
         clues.forEach(c => { if (!found.includes(c)) found.push(c); });
-        sfx('reveal');
+        sfx('clue');
         // 클로즈업: 그 장소를 크게 비춘 장면 위에 단서 카드
         const close = h('div', { class: 'closeup', html: art(theme, night) }, h('div', { class: 'closeup-emoji' }, sp.emoji));
         close.querySelector('svg').style.transformOrigin = `${sp.slot[0]}% ${sp.slot[1]}%`;
@@ -352,6 +365,7 @@
           heard[s.id].length ? heard[s.id].map(st => h('p', { class: 'nb-say' }, `“${st.text}”`)) : h('p', { class: 'muted' }, '아직 이야기를 듣지 못했다.'),
           h('div', { class: 'row' }, ['없음', '✅ 결백', '❓ 의심'].map((t, k) => h('button', { class: 'small grow' + (marks[s.id] === k ? ' primary' : ''), onClick: () => { marks[s.id] = k; sfx('scribble'); notebook(tab); } }, t))))];
       }
+      sfx('paper');
       render(root, h('h2', {}, '📓 수사 수첩'), tabs, body, h('button', { class: 'primary', onClick: () => scene() }, '↩ 현장으로'));
     }
 
@@ -416,7 +430,8 @@
           h('p', { class: 'muted' }, `신뢰 -1 · 남은 신뢰 ${heartsText()}`)),
         h('button', { class: 'primary', onClick: () => deduce(s === culprit ? s : null) }, '🔎 다시 생각해 보기'),
         h('button', { onClick: () => scene('😓 헛짚었다. 수첩을 다시 읽어 보자.') }, '↩ 현장으로'));
-      if (DO.fx) DO.fx.fail(); else sfx('bad');
+      if (DO.fx) DO.fx.fail(null, 'miss'); else sfx('miss');
+      tension();
     }
 
     // "이의 있음!" → (보스면 반격) → 자백
@@ -430,7 +445,8 @@
         cap,
         h('div', { class: 'obj-face shake' }, face(s, 96)),
         h('button', { class: 'primary', onClick: after }, '▶ 다음'));
-      sfx('busted');
+      sfx('objection'); sfx('slam', { delay: 0.55 });
+      music('hold', 'pursuit');
       document.body.classList.add('flash');
       setTimeout(() => document.body.classList.remove('flash'), 450);
       typeInto(cap, `${s.name}은(는) "${clause(st.tag)} 사람"에 대해 거짓말을 했다. 이 증거와 맞지 않는다!`);
@@ -445,7 +461,8 @@
             h('button', { class: 'danger', onClick: () => deduce(s) }, '🔎 다른 거짓말도 찌른다'),
             h('button', { onClick: () => scene('👑 범인이 버티고 있다. 다른 거짓말을 무너뜨릴 증거를 찾자.') }, '↩ 현장으로 (증거 더 찾기)'));
           typeInto(capB, `${s.name}: "하, 그게 다예요? 그거 하나로는 제가 범인이라는 증거가 안 되죠!"`);
-          sfx('bad');
+          sfx('counter');
+          music('hold', 'pursuit');
           return;
         }
         confession(s);
@@ -467,6 +484,8 @@
         cap,
         h('button', { class: 'primary', onClick: () => ending(true) }, '▶ 사건 종결'));
       typeInto(cap, `${s.name}: "${confessionText()}"`, 30);
+      sfx('confess');
+      music('hold', 'confess');
     }
 
     function ending(win) {

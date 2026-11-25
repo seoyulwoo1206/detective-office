@@ -247,7 +247,40 @@
     },
   };
 
-  const SONGS = { swing, bossa, rainy, party, think, interrogation, explore, suspense, victory, defeat };
+  // 추격(이의 있음·보스 반격): 몰아붙이는 D단조 8분음표 베이스 + 금관 찌르기 + 북
+  const PUR_ROOT = [38, 38, 41, 36];
+  const PUR_CH = [[50, 53, 57], [50, 53, 57], [53, 57, 60], [48, 52, 55]];
+  const pursuit = {
+    gain: 0.25, bpm: 140, bars: 4,
+    bar(i, t, beat, o, x) {
+      const r = PUR_ROOT[i], e8 = beat / 2;
+      [0, 0, 12, 0, 3, 0, 10, 7].forEach((d, n) => S.bass(o.c, t + n * e8, r + d, e8 * 0.8, n % 2 ? 0.6 : 0.85));
+      [0, 2].forEach(b => S.beep(o.c, t + b * beat, 68, 0.12, { peak: 0.24, to: 40 }));
+      [1, 3].forEach(b => S.rim(o.l, t + b * beat, 0.7));
+      for (let n = 0; n < 8; n++) S.shaker(o.rr, t + n * e8, n % 2 ? 0.55 : 0.3);
+      S.brass(o.r, t, PUR_CH[i], e8 * 0.9, 0.55); S.brass(o.r, t + 3 * e8, PUR_CH[i], e8 * 0.9, 0.5);
+      if (i === 3) S.brass(o.r, t + 6 * e8, [49, 52, 55, 58], e8 * 1.8, 0.6);
+      S.trem(o.l, t, beat * 4 + 0.2, i < 2 ? 74 : 72, 0.45);
+    },
+  };
+
+  // 사이버(온라인 사건): A단조 16분음표 아르페지오 + 네 박 킥 + 셰이커. 긴장도에 따라 림·떨림.
+  const CY_CH = [{ r: 45, v: [57, 60, 64, 69] }, { r: 41, v: [57, 60, 65, 69] }, { r: 48, v: [55, 60, 64, 67] }, { r: 43, v: [55, 59, 62, 67] }];
+  const CY_ORDER = [0, 1, 2, 3, 2, 1, 2, 3, 0, 1, 2, 3, 3, 2, 1, 2];
+  const cyber = {
+    gain: 0.33, bpm: 116, bars: 8,
+    bar(i, t, beat, o, x) {
+      const c = CY_CH[i % 4], s16 = beat / 4;
+      CY_ORDER.forEach((k, n) => S.pluck(n % 2 ? o.l : o.r, t + n * s16, c.v[k] + (i >= 4 && n % 8 === 7 ? 12 : 0), n % 4 ? 0.32 : 0.45));
+      for (let b = 0; b < 4; b++) S.beep(o.c, t + b * beat, 66, 0.12, { peak: 0.2, to: 40 });
+      for (let b = 0; b < 4; b++) S.shaker(o.rr, t + b * beat + beat / 2, 0.5);
+      [0, 3, 4, 6].forEach(n => S.bass(o.c, t + n * beat / 2, c.r, beat * 0.4, n ? 0.6 : 0.8));
+      if (x.level >= 1) [1, 3].forEach(b => S.rim(o.ll, t + b * beat, 0.6));
+      if (x.level >= 2) { S.trem(o.l, t, beat * 4 + 0.2, 81, 0.4); S.heart(o.c, t, 0.4); }
+    },
+  };
+
+  const SONGS = { swing, bossa, rainy, party, think, interrogation, explore, suspense, victory, defeat, pursuit, cyber };
   // 로비 곡은 시간대로 고른다
   const lobbySong = () => { const hr = new Date().getHours(); return hr >= 6 && hr < 17 ? 'bossa' : hr >= 17 && hr < 22 ? 'swing' : 'rainy'; };
   // 분위기 → 곡, 지연(초). 곡마다의 크기(gain)는 오프라인 렌더로 맞췄다: 기본 볼륨(50)에서 RMS 약 -30 dBFS 안팎.
@@ -261,6 +294,12 @@
     victory: { song: 'victory', delay: 2.4 },
     defeat: { song: 'defeat', delay: 2.6 },
     hush: { muffle: true },
+    // 현장 수사(js/investigate.js): 사건 배경마다 다른 곡을 바탕으로 깐다
+    rainy: { song: 'rainy' },
+    bossa: { song: 'bossa' },
+    cyber: { song: 'cyber' },
+    pursuit: { song: 'pursuit' },        // 이의 있음 · 보스 반격
+    confess: { song: 'defeat' },         // 자백 (빗속 피아노)
   };
   const MODE_MUSIC = { career: 'lobby', fold: 'party', forehead: 'party', 'blind-fold': 'party', alibi: 'think', 'ai-interrogation': 'interrogation', escape: 'explore', daily: 'lobby' };
   const songOf = mood => { const s = MOODS[mood].song; return typeof s === 'function' ? s() : s; };
@@ -390,7 +429,7 @@
   document.body.append(pop);
   const SONG_LABEL = {
     swing: '저녁의 사무소 재즈', bossa: '한낮의 보사노바', rainy: '비 오는 밤', party: '살금살금 파티', think: '초침 소리',
-    interrogation: '취조실 블루스', explore: '어두운 방', suspense: '두근두근', victory: '사건 해결', defeat: '미제 사건',
+    interrogation: '취조실 블루스', explore: '어두운 방', suspense: '두근두근', victory: '사건 해결', defeat: '미제 사건', pursuit: '몰아붙이기', cyber: '온라인 추적',
   };
 
   function paint() {
