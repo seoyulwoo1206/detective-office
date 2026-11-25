@@ -73,22 +73,26 @@
     return d;
   }
 
-  function markup(seed, name) {
+  // cast = { base, slot }: 같은 사건 안에서 몇 번째 사람인지. 주어지면 성별·머리색·머리 모양을 돌려 가며 골라
+  // 한 사건의 용의자들이 서로 닮지 않게 한다(없으면 씨앗으로 무작위).
+  function markup(seed, name, cast) {
     const r = rng(hashString('face:' + seed));
     const pick = a => a[Math.floor(r() * a.length)];
     const jit = k => (r() - 0.5) * 2 * k;
     const tr = traitsOf(name);
     const id = 'pf' + (uid++);
+    const C = cast && Number.isInteger(cast.slot) ? cast : null;
+    const turn = (a, k = 1) => { r(); return C ? a[(C.base + C.slot * k) % a.length] : a[Math.floor(r() * a.length)]; };
     const skin = pick(SKIN);
-    const hair = tr.elder ? pick(GRAY) : pick(HAIR);
+    const hair = tr.elder ? pick(GRAY) : turn(HAIR, 3);
     const iris = pick(IRIS);
-    const bg = pick(BG);
-    const fem = tr.fem ? true : tr.masc ? false : r() < 0.5;
+    const bg = turn(BG, 1);
+    const fem = tr.fem ? true : tr.masc ? false : C ? (C.base + C.slot) % 2 === 0 : r() < 0.5;
     const age = tr.elder ? 'elder' : tr.child ? 'child' : tr.adult ? 'adult' : tr.teen ? 'teen' : pick(['teen', 'adult']);
     const style = tr.elder && !fem ? 'thin'
       : tr.elder ? pick(['bob', 'bun', 'curly'])
-      : fem ? pick(['long', 'long', 'bob', 'pony', 'bun', 'wave'])
-      : pick(['short', 'short', 'swept', 'swept', 'mid', 'mid', age === 'adult' ? 'buzz' : 'short']);
+      : fem ? turn(['long', 'bob', 'pony', 'wave', 'bun'], 3)
+      : turn(['short', 'swept', 'mid', age === 'adult' ? 'buzz' : 'swept'], 3);
     const outfit = tr.outfit || (tr.child ? pick(['tee', 'hoodie']) : pick(['tee', 'hoodie', 'knit', 'shirt']));
     const cloth = outfit === 'suit' ? pick(SUIT) : outfit === 'uniform' ? pick(UNIFORM) : outfit === 'scrub' ? pick(['#f4f6f8', '#a9d8cf', '#9cc3e6']) : pick(CLOTH);
     const glasses = r() < (tr.elder ? 0.55 : tr.glassesBias ? 0.5 : 0.15);
@@ -325,16 +329,21 @@
   }
 
   // size: 픽셀. 사건마다 다른 얼굴이 되도록 seed 는 보통 `${case.id}:${suspect.id}`.
-  function portrait(seed, name, size = 48) {
+  function portrait(seed, name, size = 48, cast) {
     const el = document.createElement('span');
     el.className = 'portrait';
     el.style.width = el.style.height = size + 'px';
-    el.innerHTML = markup(seed, name);
+    el.innerHTML = markup(seed, name, cast);
     return el;
   }
 
   // 사건의 용의자 얼굴. 같은 사건·같은 용의자면 어느 모드에서나 같은 얼굴이 나온다.
-  const face = (C, s, size) => portrait(((C && C.id) || 'case') + ':' + s.id, s.name, size);
+  // 사건 안의 순서(slot)로 머리색·머리 모양·성별을 돌려 써서 한 사건의 용의자끼리 닮지 않게 한다.
+  const castOf = (C, s) => {
+    const i = C && Array.isArray(C.suspects) ? C.suspects.findIndex(x => x.id === s.id) : -1;
+    return i < 0 ? null : { base: hashString('cast:' + C.id) % 97, slot: i };
+  };
+  const face = (C, s, size) => portrait(((C && C.id) || 'case') + ':' + s.id, s.name, size, castOf(C, s));
 
   DO.svg = svg;
   DO.face = face;

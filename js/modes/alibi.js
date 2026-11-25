@@ -45,7 +45,7 @@
 
       const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
       const name = i => p.suspects[i].name;
-      const face = (i, size) => DO.portrait(C.id + ':' + p.suspects[i].id, name(i), size);
+      const face = (i, size) => DO.face(C, p.suspects[i], size);
       const num = i => h('span', { class: 'num', style: `background:${TOKEN[i]}` }, String(i + 1));
       const short = pl => (pl.scene ? '현장' : pl.name.slice(0, 3));
       const placeLabel = j => `${p.places[j].emoji} ${p.places[j].name}`;
@@ -60,7 +60,7 @@
           h('h2', {}, C.title),
           h('div', { class: 'card' }, h('p', {}, C.intro)),
           h('div', { class: 'lineup' }, C.suspects.map(s => h('div', { class: 'lineup-item' },
-            DO.portrait(C.id + ':' + s.id, s.name, 56), h('span', {}, s.name)))),
+            DO.face(C, s, 56), h('span', {}, s.name)))),
           h('div', { class: 'card' },
             h('h3', {}, '수사 규칙'),
             h('p', { class: 'muted' }, '· 용의자마다 "몇 시에 어디 있었다"는 진술이 표로 주어집니다.'),

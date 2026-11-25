@@ -27,6 +27,8 @@ js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/
 js/portrait.js        절차적 초상화. DO.portrait(seed, name, size), DO.face(C, suspect, size) → <span class="portrait">(SVG).
                       웹툰풍 반실사: 피부·옷·머리 그라데이션, 눈(홍채 그라데이션·반사광·속눈썹·쌍꺼풀), 앞머리 가닥(fringePath)·머릿결·윤기, 얼굴 옆으로 내려오는 머리.
                       씨앗이 같으면 같은 얼굴. 이름 속 단어로 나이대(child/teen/adult/elder)·성별 느낌·머리 모양·모자·안경·옷(교복 재킷+넥타이/리본, 정장, 작업복, 간호복, 카디건, 티·후드·니트)을 맞춘다.
+                      DO.face 는 사건 안의 순서(cast = {base, slot})로 성별(이름으로 안 정해질 때)·머리색·머리 모양·배경색을 돌려 써서 한 사건의 용의자끼리 닮지 않게 한다.
+                      그래서 용의자 얼굴은 DO.portrait 대신 꼭 DO.face(C, s, 크기) 로(모드마다 같은 얼굴이 나오게).
                       한글 이름엔 \b 가 안 먹으니 끝맺음은 $ 로 쓸 것. 얼굴 하나 0.3ms 정도. 작은 크기(40px)에서도 알아보이는지 확인할 것. DO.svg() 도 여기.
 js/sfx.js             소리 바탕. 공용 AudioContext·버스(효과음 / 배경음 → 먹먹 필터 → duck → 압축기), 잔향, 합성 악기 DO.synth
                       (keys vibe flute marimba bass pluck ride brush shaker snap rim tick pad heart drone trem brass horn hum rain drip hiss beep pan
