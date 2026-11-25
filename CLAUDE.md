@@ -25,7 +25,9 @@ style.css
 js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/render() DOM 헬퍼, rng(seed), shuffle, store(localStorage),
                       nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막)
 js/portrait.js        절차적 초상화. DO.portrait(seed, name, size), DO.face(C, suspect, size) → <span class="portrait">(SVG).
-                      씨앗이 같으면 같은 얼굴. 이름 속 단어(할머니/초등/경비원/선생 …)로 나이대·머리·모자·안경을 맞춘다. DO.svg() 도 여기.
+                      웹툰풍 반실사: 피부·옷·머리 그라데이션, 눈(홍채 그라데이션·반사광·속눈썹·쌍꺼풀), 앞머리 가닥(fringePath)·머릿결·윤기, 얼굴 옆으로 내려오는 머리.
+                      씨앗이 같으면 같은 얼굴. 이름 속 단어로 나이대(child/teen/adult/elder)·성별 느낌·머리 모양·모자·안경·옷(교복 재킷+넥타이/리본, 정장, 작업복, 간호복, 카디건, 티·후드·니트)을 맞춘다.
+                      한글 이름엔 \b 가 안 먹으니 끝맺음은 $ 로 쓸 것. 얼굴 하나 0.3ms 정도. 작은 크기(40px)에서도 알아보이는지 확인할 것. DO.svg() 도 여기.
 js/sfx.js             소리 바탕. 공용 AudioContext·버스(효과음 / 배경음 → 먹먹 필터 → duck → 압축기), 잔향, 합성 악기 DO.synth
                       (keys vibe flute marimba bass pluck ride brush shaker snap rim tick pad heart drone trem brass horn hum rain drip hiss beep pan
                       — 모두 (out, t, …) 꼴이라 오프라인 렌더에도 쓴다). 효과음 DO.sfx(name, { delay, pitch, step }):
