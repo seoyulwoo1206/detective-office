@@ -9,6 +9,7 @@
 - 손으로 쓴 사건 21개 (학교 3, 학원 1, 캠핑 1, 가족 모임 1, 동아리 MT 1, 편의점 1, 아파트 1, 병원 1, 도서관 1, 온라인 게임 길드 1, 호텔 1, 수영장 1, 공항 1, 결혼식장 1, 스터디 카페 1, 놀이공원 1, 지하철역 1, PC방 1, 농구 대회 1) + 자동 생성 사건.
 - 로컬 서버로 띄우고 싶으면 폴더에서 `python -m http.server 8765` (`.claude/launch.json`에 등록됨).
 - git 저장소 (브랜치 `main`). 커밋은 이 폴더 안에서.
+- 계정: 헤더 👤 로 가입·로그인(Appwrite, 프로젝트 `detective-office`). 기록이 계정에 저장돼 다른 기기에서 이어 할 수 있다. 설정 기록은 `docs/appwrite-설정.md`.
 - 배포: GitHub Pages — https://seoyulwoo1206.github.io/detective-office/ (저장소 `seoyulwoo1206/detective-office`, 공개). `main` 에 푸시하면 1~2분 뒤 자동으로 다시 배포된다. 빌드 단계 없음(폴더 그대로 올라감). 배포 직후 몇 초간 일부 파일이 503 을 낼 수 있으니 확인은 새로고침 후에.
 
 ## 설계 원칙
@@ -20,7 +21,7 @@
 
 ## 파일 구조
 ```
-index.html            스크립트 로드 순서: core → portrait → sfx → music → fx → investigate → alibi-engine → cases → modes → guide → app
+index.html            스크립트 로드 순서: core → portrait → sfx → music → fx → investigate → alibi-engine → cases → modes → guide → account-config → account → app
 style.css
 js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/render() DOM 헬퍼, rng(seed), shuffle, store(localStorage),
                       nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막),
@@ -58,6 +59,10 @@ js/investigate.js     현장 수사 엔진(명탐정의 길의 사건 진행). D
                       테마는 THEME_RULES 의 장소 낱말을 scene.name → 제목 → 소개 순으로 찾고, 없으면 category. 미리보기: DO.investigate.art(테마, 밤?), DO.investigate.themeOf(C).
                       onDone({ win, stars, hints(힌트 쓴 횟수), hearts(남은 신뢰) }).
 js/alibi-engine.js    알리바이 깨기 엔진(DOM 없음): 퍼즐 생성기 + 유일해 검증기. DO.alibi.generate(C, level, variant) / solve / feasible / describe
+js/account-config.js  Appwrite 프로젝트 주소(공개돼도 되는 값). projectId 를 null 로 두면 로그인 기능이 꺼진다.
+js/account.js         계정(Appwrite 이메일·비밀번호) + 기록 동기화. 헤더 👤 → 계정 시트(DO.openSheet). 로그인하면 localStorage 의 do:* 전체(do:apiKey 제외)를
+                      계정 행 하나(detective/saves, 행 ID = 사용자 ID, 열 saveJson)와 합치고(merge·mergeCareer), DO.store.set/del 때마다 1.5초 뒤 저장.
+                      file:// 이면 꺼짐. 콘솔 설정·권한은 docs/appwrite-설정.md. 저장 키를 새로 만들면 merge 규칙이 필요한지 볼 것.
 js/guide.js           온보딩: 설명 시트(오버레이), 앱 소개/용어 사전, 모드별 설명 GUIDES(meta: 인원/시간/난이도/분류 포함).
                       DO.openGuide(id), DO.openAppGuide(), DO.modeMeta(id). 모드를 추가하면 여기에 항목도 추가.
 js/app.js             홈(분류별 모드 카드 + 처음이세요? 카드) → 사건 선택(배경별 묶음 + 필터 칩, 선택은 do:caseFilter 에 기억) → mode.start().
@@ -187,4 +192,5 @@ DO.registerCase({
 - [ ] 알리바이 깨기: 공범 변형(거짓말쟁이 2명) 검토. 검증기의 후보를 용의자 쌍으로 넓혀야 한다.
 - [ ] 알리바이 깨기: 사건의 프로필 문장과 타임라인이 따로 논다. 사건 데이터에 장소·시간 정보를 넣어 연결하는 방안 검토.
 - [ ] 사건 더 작성 (`data/cases/`) — 아직 없는 배경: 박물관, 영화관, 수족관, 시장 등(배경 그림도 THEME_RULES·ART 에 추가). 자물쇠 번호가 겹치지 않게 조건 순서를 조정할 것(check-cases 출력 확인)
-- [ ] 멀티 디바이스(같은 방 접속) — 서버가 필요해서 file:// 단독 실행 원칙과 충돌. 하려면 별도 서버 프로젝트로.
+- [x] 여러 기기에서 기록 이어 하기 — Appwrite 계정 로그인으로 해결(docs/appwrite-설정.md). 로그인은 선택이고 file:// 단독 실행도 그대로 된다.
+- [ ] 멀티 디바이스(같은 방에서 여러 폰이 한 판에 접속) — 실시간 서버가 필요. 하려면 Appwrite Realtime 검토.

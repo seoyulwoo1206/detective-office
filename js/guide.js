@@ -238,6 +238,7 @@
   DO.guides = GUIDES;
   DO.openGuide = openGuide;
   DO.openAppGuide = openAppGuide;
+  DO.openSheet = openSheet;      // 다른 화면(계정 등)도 같은 시트를 쓴다
   DO.closeSheet = closeSheet;
   DO.modeMeta = id => (GUIDES[id] && GUIDES[id].meta) || {};
 })();
