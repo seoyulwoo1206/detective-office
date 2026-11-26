@@ -8,4 +8,8 @@ window.DO_ACCOUNT_CONFIG = {
   projectId: 'detective-office',
   databaseId: 'detective',
   tableId: 'saves',
+  // 여러 폰 모드(js/room.js)의 표. 콘솔에 rooms·seats 표를 만든 뒤 rooms: true 로 켠다 (docs/appwrite-설정.md)
+  rooms: false,
+  roomsTable: 'rooms',
+  seatsTable: 'seats',
 };

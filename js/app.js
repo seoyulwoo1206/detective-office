@@ -64,6 +64,7 @@
   }
 
   function home() {
+    if (DO.room) DO.room.detach();
     currentMode = null;
     if (DO.music) DO.music.base('lobby');
     homeBtn.hidden = true;
@@ -92,6 +93,9 @@
           career ? h('button', { class: 'career-cta', onClick: () => startMode(career) }, '🎖️ 혼자 모험하기 — 명탐정의 길') : null,
         ),
       ),
+      DO.room && DO.room.enabled ? h('button', { class: 'mode room-join', onClick: () => DO.room.joinScreen() },
+        h('b', {}, '📡 친구 방에 들어가기'),
+        h('div', { class: 'muted' }, '친구가 만든 방의 번호를 넣고 각자 폰으로 같이 해요.')) : null,
       sections,
       rest.length ? [h('div', { class: 'section-title' }, '기타'), rest.map(modeCard)] : null,
       h('p', { class: 'muted small-text center' }, `사건 ${listCases().length}개 수록 · 게임 중에도 위쪽 ❓ 로 설명을 볼 수 있어요`),
@@ -185,4 +189,7 @@
   DO.goHome = home;
   DO.enterMode = enterMode;
   home();
+  // 공유 링크(?room=번호)로 들어왔으면 그 방으로
+  const roomCode = new URLSearchParams(location.search).get('room');
+  if (roomCode && DO.room && DO.room.enabled) DO.room.join(roomCode);
 })();

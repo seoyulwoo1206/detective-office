@@ -211,7 +211,20 @@
         );
       }
 
-      setup();
+      // 여러 폰으로 할 수 있으면 먼저 고른다
+      if (DO.room && DO.room.has('fold')) {
+        render(root,
+          h('h2', {}, C.title),
+          h('p', { class: 'muted' }, C.intro),
+          h('div', { class: 'section-title' }, '어떻게 할까요?'),
+          h('button', { class: 'mode', onClick: setup },
+            h('b', {}, '📱 폰 하나로 돌려가며'),
+            h('div', { class: 'muted' }, '한 폰을 차례로 넘기며 비밀 프로필을 확인해요.')),
+          h('button', { class: 'mode', onClick: () => DO.room.host('fold', C) },
+            h('b', {}, '📡 각자 폰으로 (방 만들기)'),
+            h('div', { class: 'muted' }, '방 번호를 친구들이 넣으면 각자 폰에서 비밀 프로필을 보고, 접기도 동시에 몰래 정해요.')),
+        );
+      } else setup();
     },
   });
 })();

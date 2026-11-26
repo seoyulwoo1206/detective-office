@@ -22,7 +22,7 @@
   const KEEP_ON_SIGNOUT = new Set(['do:apiKey', 'do:music', 'do:musicVol', 'do:sound', 'do:seenIntro']);
   const enabled = !!CFG.projectId && /^https?:$/.test(location.protocol);
 
-  let aw = null, user = null, status = enabled ? 'loading' : 'off', errorText = '', lastSaved = null;
+  let aw = null, user = null, guest = null, status = enabled ? 'loading' : 'off', errorText = '', lastSaved = null;
   let lastUploaded = '', rowExists = false, pulling = false, timer = null, uploading = null;
   const btn = document.getElementById('account');
 
@@ -117,7 +117,7 @@
     if (aw) return aw;
     const sdk = await import(SDK);
     const client = new sdk.Client().setEndpoint(CFG.endpoint).setProject(CFG.projectId).setLocale('ko');
-    aw = { sdk, account: new sdk.Account(client), tables: new sdk.TablesDB(client) };
+    aw = { sdk, client, account: new sdk.Account(client), tables: new sdk.TablesDB(client) };
     return aw;
   }
   const rowRef = () => ({ databaseId: CFG.databaseId, tableId: CFG.tableId, rowId: user.$id });
@@ -186,10 +186,34 @@
   }
   function flush() { if (timer) { clearTimeout(timer); timer = null; upload(); } }
 
-  async function startSession(u) { user = u; lastUploaded = ''; rowExists = false; await pull(); }
+  // 익명 세션(여러 폰 방 참가용, js/room.js)은 "로그인 안 함"으로 본다 — 기록 동기화는 이메일 계정만.
+  const isAnon = u => !u || !u.email;
+  async function startSession(u) {
+    if (isAnon(u)) { user = null; guest = u || null; setStatus('signed-out'); return; }
+    guest = null; user = u; lastUploaded = ''; rowExists = false; await pull();
+  }
+  // 익명 세션이 있으면 지우고 나서 로그인·가입한다(세션이 있으면 새 세션을 못 만든다)
+  async function dropGuest() {
+    if (!guest) return;
+    try { await aw.account.deleteSession({ sessionId: 'current' }); } catch (e) { console.warn(e); }
+    guest = null;
+  }
+  // 방 참가용: 로그인한 계정이 있으면 그 사람, 없으면 익명 세션을 만들어서 { $id, name } 를 돌려준다
+  async function roomUser() {
+    await load();
+    if (user) return user;
+    if (guest) return guest;
+    try { guest = await aw.account.get(); } catch (e) {
+      if (!e || e.code !== 401) throw new Error(errorMessage(e));
+      try { await aw.account.createAnonymousSession(); guest = await aw.account.get(); } catch (e2) { throw new Error(errorMessage(e2)); }
+    }
+    if (!isAnon(guest)) { const u = guest; guest = null; await startSession(u); return u; }
+    return guest;
+  }
 
   async function signIn(email, password) {
     await load();
+    await dropGuest();
     try { await aw.account.createEmailPasswordSession({ email: email.trim(), password }); } catch (e) {
       if (!e || e.type !== 'user_session_already_exists') throw new Error(errorMessage(e));
     }
@@ -197,6 +221,7 @@
   }
   async function signUp(email, password, name) {
     await load();
+    await dropGuest();
     try { await aw.account.create({ userId: aw.sdk.ID.unique(), email: email.trim(), password, name: (name || '').trim() || undefined }); } catch (e) { throw new Error(errorMessage(e)); }
     await signIn(email, password);
   }
@@ -324,6 +349,6 @@
     if (reset) renderSheet();
   }
 
-  DO.account = { enabled, info: () => ({ status, user: user && { email: user.email, name: user.name }, lastSaved }), open: renderSheet, merge, mergeCareer };
+  DO.account = { enabled, info: () => ({ status, user: user && { email: user.email, name: user.name }, lastSaved }), open: renderSheet, merge, mergeCareer, load, roomUser };
   init();
 })();

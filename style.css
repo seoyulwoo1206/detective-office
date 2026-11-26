@@ -728,3 +728,16 @@ body.flash::after { content: ""; position: fixed; inset: 0; background: #fff; z-
 .account-sheet button.busy { opacity: .6; }
 .account-sheet .acc-me p { margin: 4px 0; }
 .account-sheet .acc-state.error { color: var(--accent); }
+
+/* ---------- 여러 폰 모드 (room.js) ---------- */
+#root.still > * { animation: none; }
+.room-code-card { text-align: center; }
+.room-code { display: flex; justify-content: center; gap: 6px; margin: 4px 0 8px; }
+.room-code span { font-family: var(--font-display); font-size: 34px; font-weight: 800; width: 46px; height: 56px; display: grid; place-items: center;
+  background: var(--yellow-soft); border: 2px solid var(--ink); border-radius: 10px; box-shadow: var(--lip-sm); }
+.room-input { font-size: 30px; text-align: center; letter-spacing: 8px; text-transform: uppercase; font-weight: 800; }
+.room-join::before { background: var(--info); }
+.room-offline { font-size: 14px; }
+.fold-pick button { min-height: 64px; font-size: 18px; }
+.secret-hint { background: var(--yellow-soft); }
+.big-emoji { font-size: 56px; }
