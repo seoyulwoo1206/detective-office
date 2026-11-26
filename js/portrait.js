@@ -281,10 +281,13 @@
     if (glasses) out.push(`<path d="M${hx - eox + 4.5} ${ey - 0.6}Q${hx} ${ey - 2} ${hx + eox - 4.5} ${ey - 0.6}" fill="none" stroke="${INK}" stroke-width=".9"/>`);
 
     // ── 코 ──
-    const ny = ey + (age === 'child' ? 5.4 : 6.6);
-    out.push(`<path d="M${hx + 0.9} ${ey + 1.4}Q${hx + 2.1} ${ny - 2.4} ${hx + 1.3} ${ny}" fill="none" stroke="${skinD}" stroke-width=".9" stroke-linecap="round" opacity=".75"/>`
-      + `<path d="M${hx - 1.5} ${ny + 0.5}Q${hx} ${ny + 1.5} ${hx + 1.5} ${ny + 0.5}" fill="none" stroke="${skinDD}" stroke-width=".8" stroke-linecap="round"/>`
-      + `<circle cx="${hx - 0.4}" cy="${ny - 0.6}" r=".7" fill="#fff" opacity=".5"/>`);
+    // 웹툰식 작은 코: 콧등 선은 빼고, 코끝 한쪽의 짧은 그늘 + 코끝 아래 옅은 그림자 + 콧구멍 자리 두 점만
+    const ny = ey + (age === 'child' ? 5.2 : 6.4);
+    const nk = age === 'child' ? 0.75 : fem ? 0.9 : 1;                   // 코 크기
+    out.push(`<path d="M${hx + 1.1 * nk} ${ny - 2.6 * nk}Q${hx + 1.9 * nk} ${ny - 0.8 * nk} ${hx + 0.9 * nk} ${ny + 0.2}" fill="none" stroke="${skinD}" stroke-width=".8" stroke-linecap="round" opacity=".6"/>`
+      + `<ellipse cx="${hx + 0.2}" cy="${ny + 0.85}" rx="${1.7 * nk}" ry=".55" fill="${skinDD}" opacity=".32"/>`
+      + `<path d="M${hx - 1.3 * nk} ${ny + 0.75}q.45 .35 .95 .1M${hx + 1.3 * nk} ${ny + 0.75}q-.45 .35 -.95 .1" fill="none" stroke="${skinDD}" stroke-width=".55" stroke-linecap="round" opacity=".8"/>`
+      + `<ellipse cx="${hx - 0.2}" cy="${ny - 0.5}" rx=".55" ry=".4" fill="#fff" opacity=".35"/>`);
     if (age === 'elder') out.push(`<path d="M${hx - 5} ${ny - 1}Q${hx - 6.6} ${ny + 2} ${hx - 5.2} ${my + 1.4}M${hx + 5} ${ny - 1}Q${hx + 6.6} ${ny + 2} ${hx + 5.2} ${my + 1.4}" fill="none" stroke="${skinDD}" stroke-width=".6" stroke-linecap="round" opacity=".7"/>`);
 
     if (freckles) out.push([[-8.6, 3.6], [-7, 4.6], [-9.4, 5], [8.6, 3.6], [7, 4.6], [9.4, 5]].map(([x, y]) => `<circle cx="${hx + x}" cy="${ey + y}" r=".42" fill="${skinDD}" opacity=".8"/>`).join(''));
