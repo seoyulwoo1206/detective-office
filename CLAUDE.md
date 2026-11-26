@@ -6,7 +6,7 @@
 - 바닐라 HTML/JS, 빌드 없음. `index.html`을 더블클릭해서 열어도 바로 실행된다 (fetch 안 씀).
 - 구현됨 (8개): **명탐정의 길**(혼자 하는 RPG식 모험), **용의자 접기**, **이마 게임**, **이마 접기**(둘의 결합), **알리바이 깨기**(타임라인 논리 추리), **AI 심문**, **일일 사건(자동 생성기)**, **방탈출**
 - 용의자 얼굴은 이미지 파일 없이 SVG 로 즉석 생성(`js/portrait.js`), 효과음·배경음도 파일 없이 WebAudio 합성(`js/sfx.js`, `js/music.js`).
-- 손으로 쓴 사건 21개 (학교 3, 학원 1, 캠핑 1, 가족 모임 1, 동아리 MT 1, 편의점 1, 아파트 1, 병원 1, 도서관 1, 온라인 게임 길드 1, 호텔 1, 수영장 1, 공항 1, 결혼식장 1, 스터디 카페 1, 놀이공원 1, 지하철역 1, PC방 1, 농구 대회 1) + 자동 생성 사건.
+- 손으로 쓴 사건 25개 (학교 3, 학원 1, 캠핑 1, 가족 모임 1, 동아리 MT 1, 편의점 1, 아파트 1, 병원 1, 도서관 1, 온라인 게임 길드 1, 호텔 1, 수영장 1, 공항 1, 결혼식장 1, 스터디 카페 1, 놀이공원 1, 지하철역 1, PC방 1, 농구 대회 1, 박물관 1, 영화관 1, 수족관 1, 야시장 1) + 자동 생성 사건.
 - 로컬 서버로 띄우고 싶으면 폴더에서 `python -m http.server 8765` (`.claude/launch.json`에 등록됨).
 - git 저장소 (브랜치 `main`). 커밋은 이 폴더 안에서.
 - 계정: 헤더 👤 로 가입·로그인(Appwrite, 프로젝트 `detective-office`). 기록이 계정에 저장돼 다른 기기에서 이어 할 수 있다. 설정 기록은 `docs/appwrite-설정.md`.
@@ -21,7 +21,7 @@
 
 ## 파일 구조
 ```
-index.html            스크립트 로드 순서: core → portrait → sfx → music → fx → investigate → alibi-engine → cases → modes → guide → account-config → account → app
+index.html            스크립트 로드 순서: core → portrait → sfx → music → fx → investigate → alibi-engine → cases → modes → guide → account-config → account → room → modes/*-online → app
 style.css
 js/core.js            DO 네임스페이스: 모드/사건 레지스트리, h()/render() DOM 헬퍼, rng(seed), shuffle, store(localStorage),
                       nameEntry(이름 입력 공용 UI), handOff(폰 넘기기 가림막),
@@ -54,8 +54,9 @@ js/music.js           배경음 10곡. 분위기 → 곡: lobby(시간대별: �
 js/fx.js              가벼운 화면 효과. DO.fx.ending(win)(결과 화면: 배경음 result + 승리면 꽃가루·팡파르, 아니면 미제 소리·흔들기), win(), good(el, 소리), fail(el, 소리), count(el, n)(숫자 세기),
                       DO.toast(msg)(alert 대신 화면 아래 쪽지). 움직임 줄이기 설정이면 효과를 생략한다.
 js/investigate.js     현장 수사 엔진(명탐정의 길의 사건 진행). DO.investigate(root, C, opt) — 도입 영상 → 배경 그림 속 장소·사람 조사(수첩 자동 기록)
-                      → 추리(범인 → 거짓말 → 증거, "이의 있음!") → 자백 영상 → 결과. 배경 그림은 ART[테마](밤/낮) 19가지:
-                      school town event shop travel(공항) online + hospital hotel camping pool library apartment wedding cafe living amusement subway pcroom gym.
+                      → 추리(범인 → 거짓말 → 증거, "이의 있음!") → 자백 영상 → 결과. 배경 그림은 ART[테마](밤/낮) 23가지:
+                      school town event shop travel(공항) online + hospital hotel camping pool library apartment wedding cafe living amusement subway pcroom gym
+                      + museum cinema aquarium market.
                       테마는 THEME_RULES 의 장소 낱말을 scene.name → 제목 → 소개 순으로 찾고, 없으면 category. 미리보기: DO.investigate.art(테마, 밤?), DO.investigate.themeOf(C).
                       onDone({ win, stars, hints(힌트 쓴 횟수), hearts(남은 신뢰) }).
 js/alibi-engine.js    알리바이 깨기 엔진(DOM 없음): 퍼즐 생성기 + 유일해 검증기. DO.alibi.generate(C, level, variant) / solve / feasible / describe
@@ -63,6 +64,12 @@ js/account-config.js  Appwrite 프로젝트 주소(공개돼도 되는 값). pro
 js/account.js         계정(Appwrite 이메일·비밀번호) + 기록 동기화. 헤더 👤 → 계정 시트(DO.openSheet). 로그인하면 localStorage 의 do:* 전체(do:apiKey 제외)를
                       계정 행 하나(detective/saves, 행 ID = 사용자 ID, 열 saveJson)와 합치고(merge·mergeCareer), DO.store.set/del 때마다 1.5초 뒤 저장.
                       file:// 이면 꺼짐. 콘솔 설정·권한은 docs/appwrite-설정.md. 저장 키를 새로 만들면 merge 규칙이 필요한지 볼 것.
+js/room.js            여러 폰으로 한 판(같은 방). 방장이 방을 만들면 5글자 방 번호, 친구는 홈 "📡 친구 방에 들어가기" 또는 링크(?room=번호)로 참가.
+                      Appwrite rooms 표(행 ID = 방 번호, state = 공개 상태 JSON, 방장만 고침) + seats 표(행 ID = 방번호_사용자ID, room, data = {name, step, act}).
+                      방장 기기가 심판: 모두의 seat.act(지금 step 의 것만) → def.reduce → 새 state. 로그인 안 했으면 익명 세션(DO.account.roomUser).
+                      Realtime 구독 + 5초마다 직접 다시 읽기. 모드는 DO.room.register(id, { min, max(C), init, reduce, view }) 로 붙인다.
+                      비밀도 state 안에 있다(양심 규칙). account-config 의 rooms: false 면 꺼짐(콘솔에 표를 만들기 전).
+js/modes/fold-online.js  용의자 접기의 여러 폰 규칙: 각자 폰에서 비밀 프로필, 접기는 몰래 동시에 고르고 한꺼번에 공개, 지목·"다음"은 아무나.
 js/guide.js           온보딩: 설명 시트(오버레이), 앱 소개/용어 사전, 모드별 설명 GUIDES(meta: 인원/시간/난이도/분류 포함).
                       DO.openGuide(id), DO.openAppGuide(), DO.modeMeta(id). 모드를 추가하면 여기에 항목도 추가.
 js/app.js             홈(분류별 모드 카드 + 처음이세요? 카드) → 사건 선택(배경별 묶음 + 필터 칩, 선택은 do:caseFilter 에 기억) → mode.start().
@@ -146,8 +153,8 @@ DO.registerCase({
   전설(level 3): `p.hidden`, 시각 후보 `p.window`(연속 3칸, 가운데 칸이 사건 소개의 "N시"). 후보는 (용의자, 시각) 쌍이고 `solvePairs` 로 정답 쌍 하나만 남는지 확인한다. "범행 시각의 현장에는 범인 혼자" 규칙 때문에 결백한 사람이 현장에 있던 칸은 범행 시각이 될 수 없다. 틀린 시각마다 `p.timeCores`(그 시각을 지우는 제약 묶음 + 그 시각 현장에 있던 사람)를 만들어 힌트·해설에 쓴다. 화면에서는 시간 머리에 "후보", 지목할 때 시각 칩도 고른다. 사람은 맞고 시각이 틀리면 오판 1회 + 그 시각 제외. 힌트는 시각부터. 증거는 탐욕 선택(입문 = 가장 많이 지우는 카드, 어려움 = 가장 조금 지우는 카드) 후 불필요한 카드를 빼고 무해한 카드 1~2장을 섞는다.
   화면: 진술표(칸 = 장소 색 + 그림) → 장소 범례 → 대조 창(카드를 누르면 진술표로 센 숫자와 비교해 ✅/⚠️ 만 알려 줌, 누가 거짓인지는 안 알려 줌) → 증거 카드 가로 줄 → 지도(시간 칩으로 진술상 위치 확인). 보드는 한 번 만들고 `update()` 로 클래스만 바꾼다(카드 줄 스크롤 유지).
   100점 시작, 힌트 -15(엔진의 core 로 한 명의 결백을 증명), 오판 -30, 기회 2번. 결과: 도장 + 재연(진짜 동선을 지도에서 1.2초 간격 재생) + 전원 해설. 최고 기록 `do:alibi:best:<caseId>:<level>`, 판 번호 `do:alibi:v:<caseId>`, 난이도 `do:alibi:level`.
-- **명탐정의 길**(career.js + investigate.js): 혼자 하는 모험. `CHAPTERS` = 6장 21사건(사건마다 한 번씩, 장마다 마지막이 보스 👑). 사건 = { c: 사건 id, lv 0~3, boss }.
-  6장 '두 번째 그림자' = 놀이공원·지하철역·PC방·농구 대회(case-018~021). 사건 파일이 없는 단계는 불러올 때 빠진다(빈 장도 빠짐).
+- **명탐정의 길**(career.js + investigate.js): 혼자 하는 모험. `CHAPTERS` = 7장 25사건(사건마다 한 번씩, 장마다 마지막이 보스 👑). 사건 = { c: 사건 id, lv 0~3, boss }.
+  6장 '두 번째 그림자' = 놀이공원·지하철역·PC방·농구 대회(case-018~021). 7장 '그림자의 수집품' = 박물관·영화관·수족관·야시장(case-022~025). 사건 파일이 없는 단계는 불러올 때 빠진다(빈 장도 빠짐).
   앞 사건을 깨야 다음 사건, 앞 장 보스를 깨야 다음 장. 장 이야기(story)와 보스를 잡으면 나오는 '그림자의 검은 카드'(clear).
   사건 진행 = 현장 수사(`DO.investigate`). 사건 데이터에서 바로 만든다:
     진술 = 조건 주제에 대한 주장 `claims(s, tag) = traits.includes(tag) !== lies.includes(tag)` 를 "○○한 사람, 그건 저예요 / 그건 제가 아니에요" 로 말한다.
@@ -165,7 +172,7 @@ DO.registerCase({
   능력(PERKS, 레벨마다 포인트 1, 언제든 되돌리기): 부지런한 발(조사 +3/랭크), 돋보기(단서 장소 반짝임), 직감(결백한 사람 1명 ✅), 침착함(신뢰 +1/랭크), 콩이 훈련(무료 힌트), 명성(경험치 +15%/랭크).
   오늘의 의뢰: 날짜로 만든 생성 사건 3건(제목이 겹치지 않게 소금을 바꿈), 난이도 = 레벨에 맞춰. 하나에 하루 한 번 보상. 저장 `do:career`(load() 에서 모양 검사).
   업적 ACHIEVEMENTS 16개(check(D, {cleared,total,stars3,level,chaptersDone,chapters})) — 보상 화면과 탐정증을 열 때 unlockAch() 로 확인, `ach{id:날짜}`. 통계 `stats`(wins perfect noHint clutch boss quests fails comeback).
-  탐정증에 업적 배지(최근 8개). 🗂 범인 도감: 해결한 사건의 범인 얼굴('sad')·별, 누르면 사건 기록과 다시 하기. 보스를 처음 잡으면 장 클리어 영상(.chapter-clear, 누르면 닫힘).
+  탐정증에 업적 배지(최근 8개). 🎨 탐정증 꾸미기(deco{card, stamp, title, face, motto}): 카드 색 CARD_THEMES 8가지·도장 STAMPS 는 레벨·업적으로 열림, 칭호 = 계급 + 딴 업적 이름, 얼굴 6가지(씨앗 career:이름:n), 한마디 24자. 🗂 범인 도감: 해결한 사건의 범인 얼굴('sad')·별, 누르면 사건 기록과 다시 하기. 보스를 처음 잡으면 장 클리어 영상(.chapter-clear, 누르면 닫힘).
   검사: 손으로 쓴 17사건 + 생성 사건 40개 모두 장면이 만들어지고 폭로 가능한 거짓말이 2개씩 있음(보스 가능)을 브라우저에서 확인. 이전 방식(알리바이 표·방탈출)은 사용자 피드백("글씨를 나열한 표 같다, 어렵다")으로 바꿨다.
   alibi.js / escape.js 의 ctx.preset 통로는 그대로 남아 있다(지금은 안 씀).
 - **AI 심문**: 질문 예산은 소개 화면에서 10/15/20 선택(`localStorage(do:budget)`에 기억). 단서 열기도 1 소모. 응답은 SSE 스트리밍(`stream: true`, `content_block_delta` 의 `text_delta` 를 이어 붙임, `message_delta.stop_reason === 'refusal'` 이면 묵비 문구). 진행 중인 판은 `do:ai:<caseId>` 에 자동 저장되어 소개 화면에서 이어서 할 수 있고, 끝난 판은 `do:ai:done:<caseId>` 에 남아 "지난 심문 기록 보기"로 본다. API 키는 `localStorage(do:apiKey)`에만 저장, 브라우저에서 `api.anthropic.com` 직접 호출(`anthropic-dangerous-direct-browser-access` 헤더). 기본 모델 `claude-opus-5-5`, `effort: low`. Opus/Sonnet엔 `fallbacks: "default"`. 프롬프트는 `buildSystem()` 한 곳에서만 만든다 — 설정 유출 금지, 범인은 체크리스트 기준으로 일관된 거짓말, 비범인은 솔직.
@@ -188,9 +195,9 @@ DO.registerCase({
 - 브라우저: 7개 모드 전부 localhost:8765 에서 한 판씩 눌러 확인함. 알리바이 깨기는 대조·힌트·오판·검거·실패·재연·새 타임라인·일일 사건, 전설의 시각 오판·시각 힌트·시각 해설까지 확인. 소리는 실제 입력으로 깨운 뒤 분위기 전환(홈→사건 선택→게임→지목→되돌아감→결과→홈)·설정 팝업·duck 을 확인했고, 오프라인 렌더로 크기·깨짐·NaN 을 쟀다. 실제로 귀로 듣는 확인은 아직 못 함. AI 심문은 `fetch` 를 가짜 SSE 스트림으로 바꿔 스트리밍 파서·저장·이어하기·기록까지 확인했고, 실제 Anthropic 서버 호출만 키가 없어 미확인.
 
 ## 다음 할 일
-- [ ] 명탐정의 길: 실제로 해 본 사람의 체감 난이도 확인. 7장 이후(새 사건이 늘면 장 추가). 탐정증 꾸미기.
+- [ ] 명탐정의 길: 실제로 해 본 사람의 체감 난이도 확인. 8장 이후(새 사건이 늘면 장 추가).
 - [ ] 알리바이 깨기: 공범 변형(거짓말쟁이 2명) 검토. 검증기의 후보를 용의자 쌍으로 넓혀야 한다.
 - [ ] 알리바이 깨기: 사건의 프로필 문장과 타임라인이 따로 논다. 사건 데이터에 장소·시간 정보를 넣어 연결하는 방안 검토.
-- [ ] 사건 더 작성 (`data/cases/`) — 아직 없는 배경: 박물관, 영화관, 수족관, 시장 등(배경 그림도 THEME_RULES·ART 에 추가). 자물쇠 번호가 겹치지 않게 조건 순서를 조정할 것(check-cases 출력 확인)
+- [ ] 사건 더 작성 (`data/cases/`) — 아직 없는 배경: 동물원, 미용실, 버스, 해변 등(배경 그림도 THEME_RULES·ART 에 추가). 자물쇠 번호가 겹치지 않게 조건 순서를 조정할 것(check-cases 출력 확인)
 - [x] 여러 기기에서 기록 이어 하기 — Appwrite 계정 로그인으로 해결(docs/appwrite-설정.md). 로그인은 선택이고 file:// 단독 실행도 그대로 된다.
-- [ ] 멀티 디바이스(같은 방에서 여러 폰이 한 판에 접속) — 실시간 서버가 필요. 하려면 Appwrite Realtime 검토.
+- [ ] 여러 폰 모드: 코드(js/room.js, fold-online.js)는 있음. **콘솔에 rooms·seats 표를 만들고 account-config 의 rooms: true 로 켠 뒤 두 기기로 시험**해야 한다(docs/appwrite-설정.md). Realtime 채널 이름(databases.… / tablesdb.…)은 실제로 이벤트가 오는지 보고 맞출 것. 그 다음 이마 게임·이마 접기도 온라인 규칙 추가.

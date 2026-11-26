@@ -1,13 +1,14 @@
 // 모드 8: 명탐정의 길 (혼자 하는 모험 · RPG 식 성장)
 //
-// 수습 탐정으로 등록해 6장 21사건을 차례로 깬다. 사건은 '현장 수사'(js/investigate.js) 방식:
+// 수습 탐정으로 등록해 7장 25사건을 차례로 깬다. 사건은 '현장 수사'(js/investigate.js) 방식:
 //   도입 영상 → 사건 배경 그림 속 장소·사람을 눌러 단서와 진술 모으기(수첩에 자동 기록) → 범인·거짓말·증거를 골라 "이의 있음!"
 // 사건을 깨면 별(남은 신뢰 ❤️, 조수 힌트를 쓰면 줄어듦)에 따라 경험치 → 레벨 업 → 능력 포인트 → 능력.
 // 장마다 마지막은 보스 사건(범인이 한 번 버텨서 거짓말 두 개를 다 찔러야 함). 보스를 잡으면 다음 장이 열리고 '그림자'를 쫓는 이야기가 이어진다.
 // 오늘의 의뢰: 날짜로 만든 자동 생성 사건 3건(하루 한 번씩) — 이야기와 별개로 경험치를 모은다.
 // 업적(ACHIEVEMENTS)·사건 도감(잡은 범인 모음)·장 클리어 연출.
 // 저장: do:career = { name, xp, perks{id:랭크}, best{stageId:별}, plays{stageId:횟수}, seen{장id:true}, quests{date, done[]},
-//                     ach{업적id:날짜}, stats{wins, perfect, noHint, clutch, boss, quests, fails, comeback} }
+//                     ach{업적id:날짜}, stats{wins, perfect, noHint, clutch, boss, quests, fails, comeback},
+//                     deco{card, stamp, title, face, motto} — 탐정증 꾸미기 }
 
 (() => {
   const { h, render, store } = DO;
@@ -61,6 +62,12 @@
       clear: '체육관 관중석 맨 위에 검은 카드 한 장. "재미있었어, 명탐정. 다음 판은 더 크게 벌이지." 두 번째 그림자는 아직 어딘가에 있다.',
       stages: [{ c: 'case-018', lv: 2 }, { c: 'case-019', lv: 2 }, { c: 'case-020', lv: 3 }, { c: 'case-021', lv: 3, boss: true }],
     },
+    {
+      id: 'c7', title: '7장 · 그림자의 수집품', place: '🏛️ 박물관에서 시장까지',
+      story: '사무소 우편함에 그림자의 검은 카드가 또 꽂혀 있었다. 이번엔 목록이다. "황금 발톱, 사인 액자, 무지개 진주, 황금 국자." 소장님이 중얼거렸다. "물건을 모으는 게 아니야. 사람들이 숨기는 걸 모으는 거지."',
+      clear: '야시장 천막의 불이 하나둘 꺼질 무렵, 국자 손잡이에 묶인 마지막 검은 카드. "수집은 여기까지. 너라는 탐정은 꽤 괜찮은 수집품이었어." 그림자는 웃으며 사라졌지만, 이번엔 네가 이겼다.',
+      stages: [{ c: 'case-022', lv: 2 }, { c: 'case-023', lv: 3 }, { c: 'case-024', lv: 3 }, { c: 'case-025', lv: 3, boss: true }],
+    },
   ];
   CHAPTERS.forEach(ch => { ch.stages = ch.stages.filter(st => DO.getCase(st.c)); });
   for (let i = CHAPTERS.length - 1; i >= 0; i--) if (!CHAPTERS[i].stages.length) CHAPTERS.splice(i, 1);
@@ -105,6 +112,21 @@
     { id: 'stars10', icon: '✨', name: '별 수집가', desc: '별 3개 사건이 10개', check: (D, x) => x.stars3 >= 10 },
     { id: 'allstar', icon: '💎', name: '전부 만점', desc: '모든 이야기 사건을 별 3개로 해결했다', check: (D, x) => x.stars3 >= x.total },
   ];
+  // 탐정증 꾸미기: 카드 색·도장은 레벨이나 업적으로 열린다 (need = { lv } | { ach })
+  const CARD_THEMES = [
+    { id: 'paper', name: '기본 종이' }, { id: 'mint', name: '민트 수첩', need: { lv: 3 } }, { id: 'sky', name: '하늘 파일', need: { ach: 'first' } },
+    { id: 'rose', name: '장미 편지', need: { ach: 'perfect' } }, { id: 'night', name: '밤의 사무소', need: { lv: 5 }, dark: true },
+    { id: 'noir', name: '흑백 필름', need: { ach: 'boss1' } }, { id: 'gold', name: '금박 배지', need: { lv: 10 } },
+    { id: 'shadow', name: '그림자 카드', need: { ach: 'all' }, dark: true },
+  ];
+  const STAMPS = [
+    { id: 'lens', icon: '🔍', name: '돋보기' }, { id: 'paw', icon: '🐾', name: '콩이 발자국', need: { ach: 'nohint' } },
+    { id: 'star', icon: '🌟', name: '별', need: { ach: 'perfect' } }, { id: 'pin', icon: '📌', name: '압정', need: { ach: 'quest1' } },
+    { id: 'crown', icon: '👑', name: '왕관', need: { ach: 'boss1' } }, { id: 'joker', icon: '🃏', name: '검은 카드', need: { ach: 'boss3' } },
+    { id: 'medal', icon: '🎖️', name: '훈장', need: { lv: 10 } }, { id: 'gem', icon: '💎', name: '보석', need: { ach: 'allstar' } },
+    { id: 'none', icon: '', name: '도장 없음' },
+  ];
+  const FACES = 6;   // 고를 수 있는 얼굴 수 (씨앗 'career:이름:n')
   const STAT_KEYS = ['wins', 'perfect', 'noHint', 'clutch', 'boss', 'quests', 'fails', 'comeback'];
   const STAR_K = [0, 0.6, 0.8, 1];
   const baseXP = st => 40 + 30 * st.lv + (st.boss ? 60 : 0);
@@ -124,6 +146,16 @@
       quests: { date: q.date, done: q.done.filter(x => Number.isInteger(x)) },
       ach: isObj(d.ach) ? Object.fromEntries(Object.entries(d.ach).filter(([k, v]) => typeof v === 'string' && ACHIEVEMENTS.some(a => a.id === k))) : {},
       stats: Object.fromEntries(STAT_KEYS.map(k => [k, nums(d.stats, 99999)[k] | 0])),
+      deco: (() => {
+        const x = isObj(d.deco) ? d.deco : {};
+        return {
+          card: CARD_THEMES.some(t => t.id === x.card) ? x.card : 'paper',
+          stamp: STAMPS.some(t => t.id === x.stamp) ? x.stamp : 'lens',
+          title: typeof x.title === 'string' ? x.title.slice(0, 20) : '',
+          face: Number.isInteger(x.face) && x.face >= 0 && x.face < FACES ? x.face : 0,
+          motto: typeof x.motto === 'string' ? x.motto.trim().slice(0, 24) : '',
+        };
+      })(),
     };
     for (const p of PERKS) if (data.perks[p.id] > p.max) data.perks[p.id] = p.max;
     return data;
@@ -134,7 +166,7 @@
   const MODE = {
     id: 'career',
     name: '명탐정의 길',
-    desc: '혼자 하는 모험. 사건 현장을 조사해 단서를 모으고, 거짓말을 증거로 무너뜨린다. 레벨을 올리고 능력을 배우며 6장 21사건 + 오늘의 의뢰, 업적과 범인 도감까지.',
+    desc: '혼자 하는 모험. 사건 현장을 조사해 단서를 모으고, 거짓말을 증거로 무너뜨린다. 레벨을 올리고 능력을 배우며 7장 25사건 + 오늘의 의뢰, 업적·범인 도감·탐정증 꾸미기까지.',
     ready: true,
     pickCase: false,
     start(root) {
@@ -163,16 +195,27 @@
       }
 
       // ---------- 탐정증 (허브) ----------
+      // 꾸미기: 열렸는지, 무엇으로 열리는지
+      const isOpen = need => !need || (need.lv ? levelOf(D.xp).L >= need.lv : !!D.ach[need.ach]);
+      const needText = need => need.lv ? `Lv ${need.lv}` : `업적 "${(ACHIEVEMENTS.find(a => a.id === need.ach) || {}).name}"`;
+      const titles = () => [...RANKS.filter(([l]) => levelOf(D.xp).L >= l).map(([, t]) => t), ...ACHIEVEMENTS.filter(a => D.ach[a.id]).map(a => a.name)];
+      const myFace = (size, n = D.deco.face) => DO.portrait('career:' + D.name + (n ? ':' + n : ''), D.name, size);
       function idCard() {
         const lv = levelOf(D.xp);
         const pct = lv.need ? Math.round(100 * lv.into / lv.need) : 100;
-        return h('div', { class: 'card id-card' },
+        const deco = D.deco;
+        const theme = CARD_THEMES.find(t => t.id === deco.card && isOpen(t.need)) || CARD_THEMES[0];
+        const stamp = STAMPS.find(t => t.id === deco.stamp && isOpen(t.need)) || STAMPS[0];
+        const title = deco.title && titles().includes(deco.title) ? deco.title : rankOf(lv.L);
+        return h('div', { class: `card id-card t-${theme.id}${theme.dark ? ' dark' : ''}` },
+          stamp.icon ? h('div', { class: 'id-stamp', title: stamp.name }, stamp.icon) : null,
           h('div', { class: 'id-top' },
-            DO.portrait('career:' + D.name, D.name, 72),
+            myFace(72),
             h('div', { class: 'grow' },
               h('div', { class: 'id-label' }, 'DETECTIVE ID'),
               h('h2', {}, D.name),
-              h('div', { class: 'id-rank' }, `${rankOf(lv.L)} · Lv ${lv.L}`))),
+              h('div', { class: 'id-rank' }, `${title} · Lv ${lv.L}`))),
+          deco.motto ? h('p', { class: 'id-motto' }, `“${deco.motto}”`) : null,
           h('div', { class: 'xpbar' }, h('span', { style: `width:${pct}%` })),
           h('p', { class: 'muted small-text' }, lv.need ? `다음 레벨까지 ${lv.need - lv.into} XP · 해결 ${clearedCount()}/${ALL.length}` : `최고 레벨! · 해결 ${clearedCount()}/${ALL.length}`),
           (() => { const got = ACHIEVEMENTS.filter(a => D.ach[a.id]); return got.length ? h('div', { class: 'id-badges', title: '업적 배지' }, got.slice(-8).map(a => h('span', { title: a.name }, a.icon))) : null; })(),
@@ -197,6 +240,7 @@
             h('button', { class: 'mode grow', onClick: album }, h('b', {}, '🗂 범인 도감'), h('div', { class: 'muted' }, `잡은 범인 ${clearedCount()}/${ALL.length}`)),
             h('button', { class: 'mode grow', onClick: achievements }, h('b', {}, '🏅 업적'), h('div', { class: 'muted' }, `${Object.keys(D.ach).length}/${ACHIEVEMENTS.length}`))),
           h('div', { class: 'row' },
+            h('button', { class: 'small grow', onClick: decorate }, '🎨 탐정증 꾸미기'),
             h('button', { class: 'small grow', onClick: register }, '✏️ 이름 바꾸기'),
             h('button', { class: 'small grow', onClick: () => { if (confirm('레벨·능력·별을 모두 지우고 처음부터 시작할까요?')) { store.del(KEY); hub(); } } }, '🗑 처음부터')),
         );
@@ -205,7 +249,7 @@
       function register() {
         const input = h('input', { placeholder: '탐정 이름 (최대 12자)', maxlength: 12, autocomplete: 'off', value: D.name || '' });
         const face = h('div', { class: 'center' });
-        const paint = () => face.replaceChildren(DO.portrait('career:' + (input.value.trim() || '탐정'), input.value.trim() || '탐정', 96));
+        const paint = () => face.replaceChildren(DO.portrait('career:' + (input.value.trim() || '탐정') + (D.deco.face ? ':' + D.deco.face : ''), input.value.trim() || '탐정', 96));
         input.addEventListener('input', paint);
         paint();
         const go = () => {
@@ -223,6 +267,42 @@
           h('div', { class: 'card secret' }, face, input),
           h('button', { class: 'primary', onClick: go }, D.name ? '저장' : '등록하고 첫 사건으로'),
           D.name ? back('← 돌아가기', hub) : null,
+        );
+      }
+
+      // ---------- 탐정증 꾸미기 ----------
+      function decorate() {
+        const set = (k, v) => { D.deco[k] = v; save(D); sfx('pop'); decorate(); };
+        const chip = (on, open, label, onClick, lockText) => h('button', {
+          class: 'chip deco-chip' + (on ? ' active' : '') + (open ? '' : ' locked'), 'data-quiet': '1',
+          onClick: open ? onClick : () => DO.toast(`🔒 ${lockText} 달성하면 열려요.`),
+        }, open ? label : `🔒 ${label}`);
+        const L = levelOf(D.xp).L;
+        const motto = h('input', { maxlength: 24, placeholder: '예: 진실은 언제나 하나', value: D.deco.motto });
+        const saveMotto = () => { const v = motto.value.trim().slice(0, 24); if (v !== D.deco.motto) { D.deco.motto = v; save(D); decorate(); } };
+        motto.addEventListener('change', saveMotto);
+        motto.addEventListener('keydown', e => { if (e.key === 'Enter') saveMotto(); });
+        const opened = CARD_THEMES.filter(t => isOpen(t.need)).length + STAMPS.filter(t => isOpen(t.need)).length;
+        render(root,
+          h('h2', {}, '🎨 탐정증 꾸미기'),
+          idCard(),
+          h('p', { class: 'muted small-text' }, `열린 꾸미기 ${opened}/${CARD_THEMES.length + STAMPS.length} · 레벨을 올리고 업적을 따면 더 열려요.`),
+          h('div', { class: 'section-title' }, '카드 색'),
+          h('div', { class: 'chips deco' }, CARD_THEMES.map(t => chip(D.deco.card === t.id, isOpen(t.need), t.name, () => set('card', t.id), t.need && needText(t.need)))),
+          h('div', { class: 'section-title' }, '도장'),
+          h('div', { class: 'chips deco' }, STAMPS.map(t => chip(D.deco.stamp === t.id, isOpen(t.need), `${t.icon} ${t.name}`.trim(), () => set('stamp', t.id), t.need && needText(t.need)))),
+          h('div', { class: 'section-title' }, '칭호'),
+          h('div', { class: 'chips deco' },
+            chip(!D.deco.title, true, `${rankOf(L)} (계급 그대로)`, () => set('title', '')),
+            titles().filter(t => t !== rankOf(L)).map(t => chip(D.deco.title === t, true, t, () => set('title', t)))),
+          h('p', { class: 'muted small-text' }, '칭호는 계급과 딴 업적 이름 중에서 고를 수 있어요.'),
+          h('div', { class: 'section-title' }, '얼굴'),
+          h('div', { class: 'deco-faces' }, Array.from({ length: FACES }, (_, n) => h('button', {
+            class: 'deco-face' + (D.deco.face === n ? ' active' : ''), 'data-quiet': '1', onClick: () => set('face', n),
+          }, myFace(54, n)))),
+          h('div', { class: 'section-title' }, '한마디'),
+          h('div', { class: 'row' }, motto, h('button', { class: 'small', onClick: saveMotto }, '저장')),
+          back('← 탐정증', hub),
         );
       }
 

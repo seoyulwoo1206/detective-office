@@ -42,6 +42,17 @@
 - 로그아웃하면 이 기기의 게임 기록을 지운다(소리 설정·API 키·처음 소개 본 여부는 남김).
 - 올리지 않는 값: `do:apiKey` (AI 심문의 Anthropic API 키).
 
+## 여러 폰 모드 (js/room.js) — 아직 만들지 않음
+
+콘솔에서 아래를 만든 뒤 `js/account-config.js` 의 `rooms: false` 를 `true` 로 바꾼다.
+
+- **Auth → Settings → Anonymous** 켜기 (로그인 안 한 친구도 방에 들어오게. 익명 사용자가 Users 에 쌓인다)
+- `detective` 데이터베이스에 표 두 개 (둘 다 표 권한 **All users → Create**, **Row level security 켜기**)
+  - `rooms`: 열 `state` (Mediumtext) — 행 ID = 방 번호 5글자. 코드가 "모두 읽기 + 방장만 고치기·지우기" 권한을 붙인다
+  - `seats`: 열 `room` (Varchar 16), 열 `data` (Varchar 4000), 인덱스 `room` (key, room) — 행 ID = 방번호_사용자ID. "모두 읽기 + 본인만 고치기·지우기"
+- 실시간(Realtime)은 따로 켤 것 없음. 채널: `databases.detective.tables.rooms.rows.<방번호>`, `databases.detective.tables.seats.rows`
+- 방장이 나가면 방이 닫힌다(대기실이면 행을 지움). 끝난 방·자리 행은 남으니 가끔 Rows 에서 지워도 된다.
+
 ## 알아 두기
 
 - 가입한 사람 목록: Auth → Users. 기록: Databases → detective → saves → Rows.

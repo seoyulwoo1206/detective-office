@@ -17,6 +17,8 @@
   const CATEGORY_THEME = { '학교·학원': 'school', '가족·동네': 'town', '모임·행사': 'event', '가게·시설': 'shop', '여행': 'travel', '온라인': 'online' };
   // 장소 이름(scene.name) → 제목 → 소개 순으로 장소 낱말을 찾아 배경을 고른다. 못 찾으면 category.
   const THEME_RULES = [
+    [/박물관|미술관|유물|큐레이터|특별전/, 'museum'], [/영화관|상영관|극장|시사회|매표소/, 'cinema'], [/수족관|아쿠아리움|수조|해양관/, 'aquarium'],
+    [/야시장|전통시장|시장|장터|노점|좌판/, 'market'],
     [/병원|간호|병실|응급|입원/, 'hospital'], [/놀이공원|놀이동산|관람차|회전목마|롤러코스터/, 'amusement'],
     [/지하철|승강장|플랫폼|역무|개찰구|환승/, 'subway'], [/PC방|피시방/i, 'pcroom'], [/체육관|농구|코트|경기장|배구|체육 대회|체육대회/, 'gym'],
     [/수영장|락커룸|수영/, 'pool'], [/캠핑|텐트|야영|캠프/, 'camping'], [/결혼|신부|신랑|웨딩|식장|예식/, 'wedding'],
@@ -254,6 +256,65 @@
       <path d="M296 116 h40" stroke="#e8743b" stroke-width="4"/><path d="M298 118 l6 18 l6 -18 l6 18 l6 -18 l6 18 l6 -18" stroke="#fff" stroke-width="1.5" fill="none"/>
       <path d="M354 116 v104" stroke="#5a6070" stroke-width="6"/>
       <g class="bob"><circle cx="90" cy="170" r="14" fill="#e8743b" stroke="#25283a" stroke-width="2"/><path d="M76 170 h28 M90 156 v28 M80 160 q10 10 0 20 M100 160 q-10 10 0 20" stroke="#25283a" stroke-width="1.2" fill="none"/></g>`,
+    museum: night => `
+      <rect width="360" height="220" fill="${night ? '#3b3a4a' : '#ece4d2'}"/><rect width="360" height="14" fill="${night ? '#2a2936' : '#d8ccb2'}"/>
+      ${[60, 180, 300].map(x => `<rect x="${x - 10}" y="14" width="20" height="6" fill="#25283a"/><polygon points="${x - 8},20 ${x + 8},20 ${x + 34},160 ${x - 34},160" fill="#fff6d0" opacity="${night ? '.07' : '.22'}"/>`).join('')}
+      <rect y="160" width="360" height="60" fill="#b9a27c"/>
+      ${Array.from({ length: 18 }, (_, i) => `<rect x="${i * 20}" y="${160 + (i % 2) * 15}" width="20" height="15" fill="#a68d66"/><rect x="${i * 20}" y="${190 + ((i + 1) % 2) * 15}" width="20" height="15" fill="#a68d66"/>`).join('')}
+      <rect x="22" y="36" width="74" height="56" fill="#c9a24a" stroke="#25283a" stroke-width="3"/><rect x="30" y="44" width="58" height="40" fill="#7fb0d8"/><circle cx="76" cy="54" r="6" fill="#f6e7b0"/><path d="M30 84 l18 -18 l14 12 l10 -8 l16 14z" fill="#3a9a6a"/>
+      <rect x="46" y="98" width="26" height="8" fill="#fff" stroke="#25283a" stroke-width="1"/>
+      <rect x="268" y="28" width="64" height="78" fill="#c9a24a" stroke="#25283a" stroke-width="3"/><rect x="276" y="36" width="48" height="62" fill="#e9d6b8"/><circle cx="300" cy="58" r="10" fill="#e7b48c"/><path d="M290 54 q10 -14 20 0" fill="#3a2a24"/><path d="M282 98 q18 -30 36 0z" fill="#8a3a4a"/>
+      <rect x="140" y="98" width="80" height="62" fill="#ddd3c2" stroke="#25283a" stroke-width="3"/><rect x="134" y="92" width="92" height="10" fill="#cfc4b0" stroke="#25283a" stroke-width="2"/>
+      <rect x="146" y="44" width="68" height="48" fill="#bfe3f0" fill-opacity=".4" stroke="#25283a" stroke-width="2.5"/>
+      <path d="M172 90 q-12 -14 0 -28 h16 q12 14 0 28z" fill="#3f73c4" stroke="#25283a" stroke-width="2"/><path d="M174 70 h12 M172 78 h16" stroke="#f2c14e" stroke-width="2"/>
+      <path d="M152 50 l10 0 M152 56 l5 0" stroke="#fff" stroke-width="2" opacity=".8"/>
+      <path d="M104 160 v-34 M256 160 v-34" stroke="#c9a24a" stroke-width="4"/><circle cx="104" cy="124" r="4.5" fill="#c9a24a"/><circle cx="256" cy="124" r="4.5" fill="#c9a24a"/>
+      <path d="M104 130 q76 24 152 0" stroke="#b33a3a" stroke-width="4" fill="none"/>
+      <rect x="150" y="112" width="60" height="16" rx="2" fill="#25283a"/><text x="180" y="124" text-anchor="middle" font-size="10" font-weight="800" fill="#f2c14e" font-family="sans-serif">특별전</text>
+      ${night ? `<rect width="360" height="220" fill="#0b1030" opacity=".35"/><g class="spot"><polygon points="180,0 120,220 240,220" fill="#fff3c0" opacity=".16"/></g>` : ''}`,
+    cinema: () => `
+      <rect width="360" height="220" fill="#1d1824"/>
+      <rect x="56" y="14" width="248" height="106" fill="#0d0b12"/>
+      <rect class="flicker2" x="62" y="18" width="236" height="98" fill="#dfe7f0"/>
+      <g class="drift"><rect x="150" y="56" width="22" height="40" rx="6" fill="#25283a"/><circle cx="161" cy="48" r="10" fill="#25283a"/><path d="M146 44 h30 l-4 -8 h-22z" fill="#25283a"/></g>
+      <circle cx="250" cy="44" r="12" fill="#f2c14e" opacity=".7"/><path d="M62 104 q60 -20 120 0 t116 -4 V116 H62z" fill="#8aa0b4"/>
+      <polygon points="180,0 70,120 290,120" fill="#fff" opacity=".06"/>
+      <path d="M0 0 h70 q-14 60 0 130 h-70z" fill="#8a1f2b"/><path d="M360 0 h-70 q14 60 0 130 h70z" fill="#8a1f2b"/>
+      <path d="M10 0 q-4 60 0 130 M30 0 q-6 60 0 130 M50 0 q-8 60 0 130 M350 0 q4 60 0 130 M330 0 q6 60 0 130 M310 0 q8 60 0 130" stroke="#6a1420" stroke-width="3" fill="none"/>
+      <rect width="360" height="12" fill="#6a1420"/>
+      ${[[136, 26, 9], [162, 30, 10], [190, 36, 11]].map(([y, w, n]) => Array.from({ length: n }, (_, i) => { const x = (360 - n * w) / 2 + i * w; return `<rect x="${x + 2}" y="${y}" width="${w - 4}" height="${w * 0.9}" rx="${w * 0.25}" fill="#b0283a" stroke="#25283a" stroke-width="2"/>`; }).join('')).join('')}
+      <rect x="312" y="132" width="34" height="13" rx="2" fill="#1f7a4a"/><text class="neon" x="329" y="142" text-anchor="middle" font-size="9" font-weight="800" fill="#c8ffd8" font-family="sans-serif">EXIT</text>
+      <g transform="translate(52 160)"><path d="M0 0 h18 l-3 22 h-12z" fill="#fff" stroke="#25283a" stroke-width="1.5"/><path d="M2 0 v20 M8 0 v22 M14 0 v20" stroke="#e2533f" stroke-width="2"/><circle cx="4" cy="-2" r="3.5" fill="#fff4c8"/><circle cx="10" cy="-4" r="3.5" fill="#fff4c8"/><circle cx="15" cy="-1" r="3" fill="#fff4c8"/></g>`,
+    aquarium: () => `
+      <defs><linearGradient id="seaQ" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fc4e8"/><stop offset="1" stop-color="#1d4f8a"/></linearGradient></defs>
+      <rect width="360" height="220" fill="#1a2b44"/>
+      <rect x="14" y="12" width="332" height="150" rx="10" fill="url(#seaQ)" stroke="#25283a" stroke-width="4"/>
+      <g opacity=".25">${[60, 140, 220, 300].map(x => `<polygon points="${x},12 ${x + 20},12 ${x - 10},162 ${x - 30},162" fill="#fff"/>`).join('')}</g>
+      <path d="M14 150 q40 -10 80 0 t80 0 t80 0 t92 0 V162 H14z" fill="#e8d6a0"/>
+      ${[40, 70, 260, 300, 322].map((x, i) => `<path class="sway" style="animation-delay:${i * 0.5}s" d="M${x} 156 q-10 -24 0 -46 q10 -20 0 -40" stroke="#2f8a5a" stroke-width="6" fill="none" stroke-linecap="round"/>`).join('')}
+      <g class="swim"><path d="M0 60 q18 -14 34 0 q-16 14 -34 0z M34 60 l12 -9 v18z" fill="#f2a03a" stroke="#25283a" stroke-width="1.5"/><path d="M12 52 v16 M20 50 v20" stroke="#fff" stroke-width="3"/><circle cx="7" cy="58" r="1.8" fill="#25283a"/></g>
+      <g class="swim2"><path d="M300 100 q-14 -11 -28 0 q14 11 28 0z M272 100 l-10 -7 v14z" fill="#ffd166" stroke="#25283a" stroke-width="1.5"/><circle cx="277" cy="98" r="1.6" fill="#25283a"/></g>
+      <g class="swim" style="animation-duration:18s;animation-delay:-6s"><path d="M0 120 q10 -8 20 0 q-10 8 -20 0z M20 120 l7 -5 v10z" fill="#7ad3ff" stroke="#25283a" stroke-width="1.2"/></g>
+      <g class="bob"><path d="M182 40 q16 -22 32 0z" fill="#ffb3d1" opacity=".85" stroke="#25283a" stroke-width="1.2"/><path d="M186 40 q-2 14 2 22 M194 40 q2 16 -2 26 M202 40 q-2 14 2 22 M210 40 q2 12 -1 18" stroke="#ff8ab8" stroke-width="1.5" fill="none"/></g>
+      ${[[110, 140], [118, 150], [230, 136], [236, 148]].map(([x, y], i) => `<circle class="bubble" style="animation-delay:${i * 0.9}s" cx="${x}" cy="${y}" r="${3 + (i % 2)}" fill="none" stroke="#fff" stroke-width="1.5"/>`).join('')}
+      <rect y="166" width="360" height="54" fill="#22324e"/><rect y="166" width="360" height="6" fill="#3a4f74"/>
+      <path d="M0 184 H360" stroke="#9fb3c8" stroke-width="4"/>${Array.from({ length: 10 }, (_, i) => `<path d="M${18 + i * 36} 184 v36" stroke="#9fb3c8" stroke-width="3"/>`).join('')}`,
+    market: night => `
+      <defs><linearGradient id="skyM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${night ? '#1d1840' : '#9fd3f0'}"/><stop offset="1" stop-color="${night ? '#5a3460' : '#ffe9c8'}"/></linearGradient></defs>
+      <rect width="360" height="220" fill="url(#skyM)"/>${night ? stars5() : '<g class="drift"><ellipse cx="90" cy="24" rx="18" ry="6" fill="#fff"/></g>'}
+      <path d="M0 26 Q90 50 180 26 T360 26" stroke="#25283a" stroke-width="1" fill="none"/>
+      ${Array.from({ length: 9 }, (_, i) => { const x = 20 + i * 40, y = 26 + 12 * Math.sin(Math.PI * ((x % 180) / 180)); return `<path d="M${x} ${y.toFixed(1)} v6" stroke="#25283a"/><ellipse class="${i % 2 ? 'bulb' : 'bulb2'}" cx="${x}" cy="${(y + 14).toFixed(1)}" rx="7" ry="9" fill="${night ? ['#ff7a5c', '#ffd76a'][i % 2] : '#e2533f'}" stroke="#25283a" stroke-width="1.5"/>`; }).join('')}
+      ${[[6, '#e2533f', '떡볶이'], [124, '#3f73c4', '호떡'], [242, '#3a9a6a', '과일']].map(([x, c, name]) => `
+        <rect x="${x}" y="78" width="112" height="16" rx="3" fill="#fff" stroke="#25283a" stroke-width="2"/><text x="${x + 56}" y="90" text-anchor="middle" font-size="11" font-weight="800" fill="${c}" font-family="sans-serif">${name}</text>
+        <path d="M${x} 94 h112 l8 22 h-128z" fill="${c}" stroke="#25283a" stroke-width="2"/>${Array.from({ length: 4 }, (_, k) => `<path d="M${x + 14 + k * 28} 94 l-2 22 h14 l2 -22z" fill="#fff" opacity=".85"/>`).join('')}
+        <path d="M${x + 4} 116 v54 M${x + 108} 116 v54" stroke="#6b4a2e" stroke-width="4"/>
+        <rect x="${x - 2}" y="142" width="116" height="30" fill="#c99b62" stroke="#25283a" stroke-width="2"/>`).join('')}
+      <ellipse cx="62" cy="140" rx="30" ry="7" fill="#5a6070" stroke="#25283a" stroke-width="2"/><ellipse cx="62" cy="138" rx="24" ry="4" fill="#e2533f"/>
+      ${[50, 62, 74].map((x, i) => `<path class="steam" style="animation-delay:${i * 0.6}s" d="M${x} 128 q-5 -8 0 -16 q5 -8 0 -16" stroke="#fff" stroke-width="2.5" fill="none" opacity=".8"/>`).join('')}
+      ${[160, 180, 200].map(x => `<ellipse cx="${x}" cy="138" rx="9" ry="5" fill="#d8954a" stroke="#25283a" stroke-width="1.5"/>`).join('')}
+      ${[[272, '#e2533f'], [288, '#f2a03a'], [304, '#f2c14e'], [320, '#3a9a6a'], [280, '#8a3a8a']].map(([x, c], i) => `<circle cx="${x + (i > 3 ? 18 : 0)}" cy="${i > 3 ? 128 : 136}" r="7" fill="${c}" stroke="#25283a" stroke-width="1.5"/>`).join('')}
+      <rect y="172" width="360" height="48" fill="${night ? '#3a3046' : '#cdb894'}"/>
+      ${night ? '<rect width="360" height="220" fill="#1a1030" opacity=".18"/>' : ''}`,
   };
   const art = (theme, night) => `<svg viewBox="0 0 360 220" preserveAspectRatio="xMidYMid slice" class="art art-${theme}${night ? ' night' : ''}">${(ART[theme] || ART.town)(night)}</svg>`;
   // 장소 단서를 놓는 자리 (그림 위 %)
@@ -355,6 +416,7 @@
       school: 'think', town: night ? 'rainy' : 'interrogation', event: 'party', shop: night ? 'explore' : 'interrogation', travel: night ? 'rainy' : 'bossa', online: 'cyber',
       hospital: night ? 'explore' : 'think', hotel: 'swing', camping: night ? 'rainy' : 'bossa', pool: 'bossa', library: 'think', apartment: night ? 'rainy' : 'interrogation',
       wedding: 'swing', cafe: 'think', living: 'swing', amusement: 'party', subway: night ? 'rainy' : 'interrogation', pcroom: 'cyber', gym: 'party',
+      museum: night ? 'explore' : 'think', cinema: 'explore', aquarium: 'bossa', market: night ? 'swing' : 'bossa',
     };
     const music = (fn, ...a) => { if (DO.music && DO.music[fn]) DO.music[fn](...a); };
     music('base', THEME_MUSIC[theme] || 'think');
