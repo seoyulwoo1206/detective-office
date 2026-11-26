@@ -297,6 +297,7 @@
     // 현장 수사(js/investigate.js): 사건 배경마다 다른 곡을 바탕으로 깐다
     rainy: { song: 'rainy' },
     bossa: { song: 'bossa' },
+    swing: { song: 'swing' },
     cyber: { song: 'cyber' },
     pursuit: { song: 'pursuit' },        // 이의 있음 · 보스 반격
     confess: { song: 'defeat' },         // 자백 (빗속 피아노)

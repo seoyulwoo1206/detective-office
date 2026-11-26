@@ -6,7 +6,7 @@
 - 바닐라 HTML/JS, 빌드 없음. `index.html`을 더블클릭해서 열어도 바로 실행된다 (fetch 안 씀).
 - 구현됨 (8개): **명탐정의 길**(혼자 하는 RPG식 모험), **용의자 접기**, **이마 게임**, **이마 접기**(둘의 결합), **알리바이 깨기**(타임라인 논리 추리), **AI 심문**, **일일 사건(자동 생성기)**, **방탈출**
 - 용의자 얼굴은 이미지 파일 없이 SVG 로 즉석 생성(`js/portrait.js`), 효과음·배경음도 파일 없이 WebAudio 합성(`js/sfx.js`, `js/music.js`).
-- 손으로 쓴 사건 17개 (학교 3, 학원 1, 캠핑 1, 가족 모임 1, 동아리 MT 1, 편의점 1, 아파트 1, 병원 1, 도서관 1, 온라인 게임 길드 1, 호텔 1, 수영장 1, 공항 1, 결혼식장 1, 스터디 카페 1) + 자동 생성 사건.
+- 손으로 쓴 사건 21개 (학교 3, 학원 1, 캠핑 1, 가족 모임 1, 동아리 MT 1, 편의점 1, 아파트 1, 병원 1, 도서관 1, 온라인 게임 길드 1, 호텔 1, 수영장 1, 공항 1, 결혼식장 1, 스터디 카페 1, 놀이공원 1, 지하철역 1, PC방 1, 농구 대회 1) + 자동 생성 사건.
 - 로컬 서버로 띄우고 싶으면 폴더에서 `python -m http.server 8765` (`.claude/launch.json`에 등록됨).
 - git 저장소 (브랜치 `main`). 커밋은 이 폴더 안에서.
 - 배포: GitHub Pages — https://seoyulwoo1206.github.io/detective-office/ (저장소 `seoyulwoo1206/detective-office`, 공개). `main` 에 푸시하면 1~2분 뒤 자동으로 다시 배포된다. 빌드 단계 없음(폴더 그대로 올라감). 배포 직후 몇 초간 일부 파일이 503 을 낼 수 있으니 확인은 새로고침 후에.
@@ -31,6 +31,9 @@ js/portrait.js        절차적 초상화. DO.portrait(seed, name, size), DO.fac
                       씨앗이 같으면 같은 얼굴. 이름 속 단어로 나이대(child/teen/adult/elder)·성별 느낌·머리 모양·모자·안경·옷(교복 재킷+넥타이/리본, 정장, 작업복, 간호복, 카디건, 티·후드·니트)을 맞춘다.
                       DO.face 는 사건 안의 순서(cast = {base, slot})로 성별(이름으로 안 정해질 때)·머리색·머리 모양·배경색을 돌려 써서 한 사건의 용의자끼리 닮지 않게 한다.
                       그래서 용의자 얼굴은 DO.portrait 대신 꼭 DO.face(C, s, 크기) 로(모드마다 같은 얼굴이 나오게).
+                      표정: DO.face(C, s, 크기, mood) — 'shock'(놀람: 작은 눈동자·벌린 입·땀·이마 그늘) 'nervous'(당황: 땀방울·물결 입) 'angry'(화남: 핏대·붉은 볼)
+                      'sad'(눈물·처진 입) 'smug'(가늘게 뜬 눈·비웃음). 표정은 얼굴 고르기 씨앗을 건드리지 않아 같은 사람 그대로다.
+                      소품(따로 굴린 씨앗 acc:): 헤드셋(방송부·게이머·길드·보컬 등), 머리띠, 머리핀, 주근깨, 점, 앞치마(알바·사장·점장), 호루라기(안전요원·코치·심판).
                       한글 이름엔 \b 가 안 먹으니 끝맺음은 $ 로 쓸 것. 얼굴 하나 0.3ms 정도. 작은 크기(40px)에서도 알아보이는지 확인할 것. DO.svg() 도 여기.
 js/sfx.js             소리 바탕. 공용 AudioContext·버스(효과음 / 배경음 → 먹먹 필터 → duck → 압축기), 잔향, 합성 악기 DO.synth
                       (keys vibe flute marimba bass pluck ride brush shaker snap rim tick pad heart drone trem brass horn hum rain drip hiss beep pan
@@ -50,7 +53,10 @@ js/music.js           배경음 10곡. 분위기 → 곡: lobby(시간대별: �
 js/fx.js              가벼운 화면 효과. DO.fx.ending(win)(결과 화면: 배경음 result + 승리면 꽃가루·팡파르, 아니면 미제 소리·흔들기), win(), good(el, 소리), fail(el, 소리), count(el, n)(숫자 세기),
                       DO.toast(msg)(alert 대신 화면 아래 쪽지). 움직임 줄이기 설정이면 효과를 생략한다.
 js/investigate.js     현장 수사 엔진(명탐정의 길의 사건 진행). DO.investigate(root, C, opt) — 도입 영상 → 배경 그림 속 장소·사람 조사(수첩 자동 기록)
-                      → 추리(범인 → 거짓말 → 증거, "이의 있음!") → 자백 영상 → 결과. 배경 그림은 ART[테마](밤/낮), 테마는 category 또는 장소 이름으로.
+                      → 추리(범인 → 거짓말 → 증거, "이의 있음!") → 자백 영상 → 결과. 배경 그림은 ART[테마](밤/낮) 19가지:
+                      school town event shop travel(공항) online + hospital hotel camping pool library apartment wedding cafe living amusement subway pcroom gym.
+                      테마는 THEME_RULES 의 장소 낱말을 scene.name → 제목 → 소개 순으로 찾고, 없으면 category. 미리보기: DO.investigate.art(테마, 밤?), DO.investigate.themeOf(C).
+                      onDone({ win, stars, hints(힌트 쓴 횟수), hearts(남은 신뢰) }).
 js/alibi-engine.js    알리바이 깨기 엔진(DOM 없음): 퍼즐 생성기 + 유일해 검증기. DO.alibi.generate(C, level, variant) / solve / feasible / describe
 js/guide.js           온보딩: 설명 시트(오버레이), 앱 소개/용어 사전, 모드별 설명 GUIDES(meta: 인원/시간/난이도/분류 포함).
                       DO.openGuide(id), DO.openAppGuide(), DO.modeMeta(id). 모드를 추가하면 여기에 항목도 추가.
@@ -135,7 +141,8 @@ DO.registerCase({
   전설(level 3): `p.hidden`, 시각 후보 `p.window`(연속 3칸, 가운데 칸이 사건 소개의 "N시"). 후보는 (용의자, 시각) 쌍이고 `solvePairs` 로 정답 쌍 하나만 남는지 확인한다. "범행 시각의 현장에는 범인 혼자" 규칙 때문에 결백한 사람이 현장에 있던 칸은 범행 시각이 될 수 없다. 틀린 시각마다 `p.timeCores`(그 시각을 지우는 제약 묶음 + 그 시각 현장에 있던 사람)를 만들어 힌트·해설에 쓴다. 화면에서는 시간 머리에 "후보", 지목할 때 시각 칩도 고른다. 사람은 맞고 시각이 틀리면 오판 1회 + 그 시각 제외. 힌트는 시각부터. 증거는 탐욕 선택(입문 = 가장 많이 지우는 카드, 어려움 = 가장 조금 지우는 카드) 후 불필요한 카드를 빼고 무해한 카드 1~2장을 섞는다.
   화면: 진술표(칸 = 장소 색 + 그림) → 장소 범례 → 대조 창(카드를 누르면 진술표로 센 숫자와 비교해 ✅/⚠️ 만 알려 줌, 누가 거짓인지는 안 알려 줌) → 증거 카드 가로 줄 → 지도(시간 칩으로 진술상 위치 확인). 보드는 한 번 만들고 `update()` 로 클래스만 바꾼다(카드 줄 스크롤 유지).
   100점 시작, 힌트 -15(엔진의 core 로 한 명의 결백을 증명), 오판 -30, 기회 2번. 결과: 도장 + 재연(진짜 동선을 지도에서 1.2초 간격 재생) + 전원 해설. 최고 기록 `do:alibi:best:<caseId>:<level>`, 판 번호 `do:alibi:v:<caseId>`, 난이도 `do:alibi:level`.
-- **명탐정의 길**(career.js + investigate.js): 혼자 하는 모험. `CHAPTERS` = 5장 17사건(사건마다 한 번씩, 장마다 마지막이 보스 👑). 사건 = { c: 사건 id, lv 0~3, boss }.
+- **명탐정의 길**(career.js + investigate.js): 혼자 하는 모험. `CHAPTERS` = 6장 21사건(사건마다 한 번씩, 장마다 마지막이 보스 👑). 사건 = { c: 사건 id, lv 0~3, boss }.
+  6장 '두 번째 그림자' = 놀이공원·지하철역·PC방·농구 대회(case-018~021). 사건 파일이 없는 단계는 불러올 때 빠진다(빈 장도 빠짐).
   앞 사건을 깨야 다음 사건, 앞 장 보스를 깨야 다음 장. 장 이야기(story)와 보스를 잡으면 나오는 '그림자의 검은 카드'(clear).
   사건 진행 = 현장 수사(`DO.investigate`). 사건 데이터에서 바로 만든다:
     진술 = 조건 주제에 대한 주장 `claims(s, tag) = traits.includes(tag) !== lies.includes(tag)` 를 "○○한 사람, 그건 저예요 / 그건 제가 아니에요" 로 말한다.
@@ -145,12 +152,15 @@ DO.registerCase({
     난이도(LEVELS): 조사 횟수 ∞/16/13/11(보스 +2), 단서의 "관련 이야기" 표시는 0~1 만. 조수 콩이 힌트 = 다음에 볼 곳/들을 사람/수첩 주제(별 -1, 무료 횟수는 능력).
     별 = min(3, 남은 신뢰) - 유료 힌트(최소 1). 연출: 레터박스·카메라 이동·타자 내레이션·용의자 등장, 조사 시 카메라 확대 + 돋보기, 단서 클로즈업, 대화는 비주얼 노벨(흐린 배경 + 얼굴 + 말풍선),
     "이의 있음!" 터짐 + 흰 번쩍임 + 거짓말에 줄 + 증거 쾅 + 범인 흔들림, 자백은 범인의 비밀 프로필을 1인칭·말투로 바꿔서(받침 ㅆ + 다. → 어요.).
+    표정: 쉬운 난이도(lv.related)에서 범인의 거짓말 주제 단서를 보여 주면 'nervous', 헛짚으면 결백한 사람 'angry'·범인 'smug', 이의 있음 'shock', 보스 반격 'smug', 자백·검거 'sad'.
     소리: 배경마다 곡(THEME_MUSIC — 교실 think, 골목 밤 rainy/낮 interrogation, 축제 party, 가게 밤 explore/낮 interrogation, 여행 밤 rainy/낮 bossa, 온라인 cyber),
     추리 화면 suspense, "이의 있음!"·보스 반격 pursuit(새 곡), 자백 confess(빗속 피아노), 결과 victory/defeat. 긴장도 = 보스 1단계부터, 신뢰를 잃거나 조사 3번 이하면 올라감.
     전용 효과음: caseOpen/bossOpen(제목), zoom(조사 카메라), clue(단서 획득), miss(헛짚음), objection(오케스트라 히트), slam(증거 쾅), counter(보스 반격), confess(자백). 용의자 등장은 coin 을 한 명씩.
   경험치 = (40 + 30×난이도 + 보스 60) × 별 계수(★1 0.6 / ★2 0.8 / ★3 1.0) × 명성. 다시 깨면 별이 오른 만큼(최소 15%), 실패 10. 레벨 L→L+1 에 100+60(L-1), 최고 15. 칭호 RANKS.
   능력(PERKS, 레벨마다 포인트 1, 언제든 되돌리기): 부지런한 발(조사 +3/랭크), 돋보기(단서 장소 반짝임), 직감(결백한 사람 1명 ✅), 침착함(신뢰 +1/랭크), 콩이 훈련(무료 힌트), 명성(경험치 +15%/랭크).
   오늘의 의뢰: 날짜로 만든 생성 사건 3건(제목이 겹치지 않게 소금을 바꿈), 난이도 = 레벨에 맞춰. 하나에 하루 한 번 보상. 저장 `do:career`(load() 에서 모양 검사).
+  업적 ACHIEVEMENTS 16개(check(D, {cleared,total,stars3,level,chaptersDone,chapters})) — 보상 화면과 탐정증을 열 때 unlockAch() 로 확인, `ach{id:날짜}`. 통계 `stats`(wins perfect noHint clutch boss quests fails comeback).
+  탐정증에 업적 배지(최근 8개). 🗂 범인 도감: 해결한 사건의 범인 얼굴('sad')·별, 누르면 사건 기록과 다시 하기. 보스를 처음 잡으면 장 클리어 영상(.chapter-clear, 누르면 닫힘).
   검사: 손으로 쓴 17사건 + 생성 사건 40개 모두 장면이 만들어지고 폭로 가능한 거짓말이 2개씩 있음(보스 가능)을 브라우저에서 확인. 이전 방식(알리바이 표·방탈출)은 사용자 피드백("글씨를 나열한 표 같다, 어렵다")으로 바꿨다.
   alibi.js / escape.js 의 ctx.preset 통로는 그대로 남아 있다(지금은 안 씀).
 - **AI 심문**: 질문 예산은 소개 화면에서 10/15/20 선택(`localStorage(do:budget)`에 기억). 단서 열기도 1 소모. 응답은 SSE 스트리밍(`stream: true`, `content_block_delta` 의 `text_delta` 를 이어 붙임, `message_delta.stop_reason === 'refusal'` 이면 묵비 문구). 진행 중인 판은 `do:ai:<caseId>` 에 자동 저장되어 소개 화면에서 이어서 할 수 있고, 끝난 판은 `do:ai:done:<caseId>` 에 남아 "지난 심문 기록 보기"로 본다. API 키는 `localStorage(do:apiKey)`에만 저장, 브라우저에서 `api.anthropic.com` 직접 호출(`anthropic-dangerous-direct-browser-access` 헤더). 기본 모델 `claude-opus-5-5`, `effort: low`. Opus/Sonnet엔 `fallbacks: "default"`. 프롬프트는 `buildSystem()` 한 곳에서만 만든다 — 설정 유출 금지, 범인은 체크리스트 기준으로 일관된 거짓말, 비범인은 솔직.
@@ -173,8 +183,8 @@ DO.registerCase({
 - 브라우저: 7개 모드 전부 localhost:8765 에서 한 판씩 눌러 확인함. 알리바이 깨기는 대조·힌트·오판·검거·실패·재연·새 타임라인·일일 사건, 전설의 시각 오판·시각 힌트·시각 해설까지 확인. 소리는 실제 입력으로 깨운 뒤 분위기 전환(홈→사건 선택→게임→지목→되돌아감→결과→홈)·설정 팝업·duck 을 확인했고, 오프라인 렌더로 크기·깨짐·NaN 을 쟀다. 실제로 귀로 듣는 확인은 아직 못 함. AI 심문은 `fetch` 를 가짜 SSE 스트림으로 바꿔 스트리밍 파서·저장·이어하기·기록까지 확인했고, 실제 Anthropic 서버 호출만 키가 없어 미확인.
 
 ## 다음 할 일
-- [ ] 명탐정의 길: 실제로 해 본 사람의 체감 난이도 확인. 6장 이후(새 사건이 늘면 장 추가), 업적/도감, 배경 그림 종류 더(병원·호텔·캠핑을 따로).
+- [ ] 명탐정의 길: 실제로 해 본 사람의 체감 난이도 확인. 7장 이후(새 사건이 늘면 장 추가). 탐정증 꾸미기.
 - [ ] 알리바이 깨기: 공범 변형(거짓말쟁이 2명) 검토. 검증기의 후보를 용의자 쌍으로 넓혀야 한다.
 - [ ] 알리바이 깨기: 사건의 프로필 문장과 타임라인이 따로 논다. 사건 데이터에 장소·시간 정보를 넣어 연결하는 방안 검토.
-- [ ] 사건 더 작성 (`data/cases/`) — 아직 없는 배경: 놀이공원, 지하철, PC방, 농구 대회 등. 자물쇠 번호가 겹치지 않게 조건 순서를 조정할 것(check-cases 출력 확인)
+- [ ] 사건 더 작성 (`data/cases/`) — 아직 없는 배경: 박물관, 영화관, 수족관, 시장 등(배경 그림도 THEME_RULES·ART 에 추가). 자물쇠 번호가 겹치지 않게 조건 순서를 조정할 것(check-cases 출력 확인)
 - [ ] 멀티 디바이스(같은 방 접속) — 서버가 필요해서 file:// 단독 실행 원칙과 충돌. 하려면 별도 서버 프로젝트로.

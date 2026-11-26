@@ -44,13 +44,16 @@
     const elder = /할머니|할아버지|노인/.test(n);
     const child = /초등|막내|어린이|아이$|유치|사촌 동생/.test(n);
     const teen = !child && /학생|고3|중학|고등|반장|부장|회장|부원|전학생|1등|후배|주장|선배|도서부|미술부|방송부|총무|체육부|수험생|재수생|보컬|동아리/.test(n);
-    const adult = !elder && !child && !teen && /선생|강사|원장|아빠|엄마|삼촌|고모|이모|아저씨|기사|직원|점장|회사원|매니저|플래너|경비|바텐더|상인|가이드|간호사|인턴|공무원|수집가|남편|아내|조교|라이더|요원|승무원|손님|봉사자|길드장/.test(n);
+    const adult = !elder && !child && !teen && /선생|강사|원장|아빠|엄마|삼촌|고모|이모|아저씨|아주머니|사장|역무원|기사|직원|점장|회사원|매니저|플래너|경비|바텐더|상인|가이드|간호사|인턴|공무원|수집가|남편|아내|조교|라이더|요원|승무원|손님|봉사자|길드장/.test(n);
     return {
       elder, child, teen, adult,
       cap: /경비|기사|라이더|안전요원|요원/.test(n),
+      apron: /알바|아르바이트|사장|점장|바텐더|상인|가게|카페 매니저/.test(n),
+      whistle: /안전요원|코치|감독|심판|체육 선생/.test(n),
+      phones: /방송부|게이머|길드|DJ|보컬|힐러|탱커|도적/.test(n),
       glassesBias: /선생|사서|매니저|플래너|회사원|인턴|조교|수험|재수|준비생|1등|수집가|강사/.test(n),
-      fem: /할머니|엄마|아내|신부(?! 사촌| 친구)|이모|고모|누나|언니|여학생|간호사|승무원/.test(n),
-      masc: /할아버지|아빠|남편|아저씨|삼촌|신랑(?! 동생)|오빠|남학생|형$|경비/.test(n),
+      fem: /할머니|엄마|아내|신부(?! 사촌| 친구)|이모|고모|누나|언니|여학생|간호사|승무원|아주머니|손녀|딸$|여동생|공주/.test(n),
+      masc: /할아버지|아빠|남편|아저씨|삼촌|신랑(?! 동생)|오빠|남학생|형$|경비|손자|아들$|남동생/.test(n),
       outfit: elder ? 'cardigan'
         : /간호사|인턴/.test(n) ? 'scrub'
         : /경비|기사|라이더|요원|승무원|직원|가이드/.test(n) ? 'work'
@@ -75,7 +78,8 @@
 
   // cast = { base, slot }: 같은 사건 안에서 몇 번째 사람인지. 주어지면 성별·머리색·머리 모양을 돌려 가며 골라
   // 한 사건의 용의자들이 서로 닮지 않게 한다(없으면 씨앗으로 무작위).
-  function markup(seed, name, cast) {
+  // mood: 표정 — 'shock'(놀람·들통) 'nervous'(당황) 'angry'(화남) 'sad'(울먹임·자백) 'smug'(비웃음). 없으면 평소 얼굴.
+  function markup(seed, name, cast, mood) {
     const r = rng(hashString('face:' + seed));
     const pick = a => a[Math.floor(r() * a.length)];
     const jit = k => (r() - 0.5) * 2 * k;
@@ -97,10 +101,20 @@
     const cloth = outfit === 'suit' ? pick(SUIT) : outfit === 'uniform' ? pick(UNIFORM) : outfit === 'scrub' ? pick(['#f4f6f8', '#a9d8cf', '#9cc3e6']) : pick(CLOTH);
     const glasses = r() < (tr.elder ? 0.55 : tr.glassesBias ? 0.5 : 0.15);
     const eyeShape = age === 'child' ? 'round' : pick(['almond', 'almond', 'round', 'sharp']);
-    const browKind = pick(['soft', 'soft', 'straight', 'worried', 'stern']);
-    const mouth = pick(['smile', 'smile', 'soft', 'soft', 'smirk', 'grin', 'pout', 'tight']);
+    const browKind0 = pick(['soft', 'soft', 'straight', 'worried', 'stern']);
+    const mouth0 = pick(['smile', 'smile', 'soft', 'soft', 'smirk', 'grin', 'pout', 'tight']);
+    const browKind = { shock: 'raised', nervous: 'worried', sad: 'worried', angry: 'stern', smug: 'straight' }[mood] || browKind0;
+    const mouth = { shock: 'gasp', nervous: 'wobble', sad: 'frown', angry: 'tight', smug: 'smirk' }[mood] || mouth0;
     const earring = fem && !tr.child && !tr.elder && r() < 0.3;
     const stubble = !fem && age === 'adult' && r() < 0.3;
+    // 소품·점은 따로 굴린 씨앗으로 (위의 얼굴 고르기 순서를 바꾸지 않게)
+    const A = rng(hashString('acc:' + seed));
+    const phones = !tr.cap && !tr.elder && (tr.phones || A() < 0.05);
+    const headband = fem && !tr.cap && !tr.elder && !phones && style !== 'bun' && A() < 0.2;
+    const hairpin = fem && !tr.cap && !headband && !phones && A() < 0.28;
+    const freckles = !tr.elder && A() < 0.12, mole = A() < 0.14;
+    const pinColor = ['#e2533f', '#f2c14e', '#7ad3ff', '#ff9fb2'][Math.floor(A() * 4)];
+    const moleAt = [A() < 0.5 ? -4.6 : 5.2, A() < 0.5 ? -1 : 2.6];
 
     // 머리 틀 (64×64 안)
     const hx = 32, hy = age === 'child' ? 29 : 28;
@@ -109,7 +123,7 @@
     const jw = age === 'child' ? 7.2 : fem ? 4.4 : age === 'adult' || age === 'elder' ? 6.4 : 5.4;
     const ey = hy + (age === 'child' ? 2.2 : 1.4);
     const ew = age === 'child' ? 7.6 : age === 'elder' ? 6.2 : age === 'adult' ? 6.8 : 7.2;
-    const eh = (age === 'child' ? 5.6 : age === 'elder' ? 3.2 : age === 'adult' ? 3.9 : 4.6) * (eyeShape === 'round' ? 1.1 : eyeShape === 'sharp' ? 0.8 : 1);
+    const eh = (age === 'child' ? 5.6 : age === 'elder' ? 3.2 : age === 'adult' ? 3.9 : 4.6) * (eyeShape === 'round' ? 1.1 : eyeShape === 'sharp' ? 0.8 : 1) * (mood === 'shock' ? 1.15 : mood === 'smug' || mood === 'angry' ? 0.78 : 1);
     const eox = age === 'child' ? 6.4 : 6.1;                         // 눈 중심의 가로 간격(반)
     const my = hy + (age === 'child' ? 10.4 : 11.2);
     const skinD = shade(skin, -0.2), skinDD = shade(skin, -0.34);
@@ -236,7 +250,7 @@
       const yi = ey + 0.4, yo = ey - tilt;
       const upper = `M${xi} ${yi}C${xi + dir * ew * 0.18} ${ey - eh * 0.98} ${xo - dir * ew * 0.28} ${ey - eh * 0.98} ${xo} ${yo}`;
       const eyeD = upper + `C${xo - dir * ew * 0.2} ${ey + eh * 0.62} ${xi + dir * ew * 0.28} ${ey + eh * 0.66} ${xi} ${yi}Z`;
-      const ir = Math.max(2, ew * 0.33), icy = ey + eh * 0.06;
+      const ir = mood === 'shock' ? Math.max(1.5, ew * 0.22) : Math.max(2, ew * 0.33), icy = ey + eh * 0.06;
       const cid = `${id}e${dir > 0 ? 'r' : 'l'}`;
       out.push(`<clipPath id="${cid}"><path d="${eyeD}"/></clipPath>`);
       out.push(`<path d="${eyeD}" fill="#fbfaf7"/>`);
@@ -258,8 +272,8 @@
       // 눈썹
       const by = ey - eh - (age === 'child' ? 2.6 : 2.2);
       const ix = x - dir * ew * 0.48, ox = x + dir * ew * 0.72;
-      const iy = by + (browKind === 'worried' ? -1 : browKind === 'stern' ? 0.9 : 0), oy = by + (browKind === 'worried' ? 0.8 : browKind === 'stern' ? -0.6 : 0.3);
-      const arch = browKind === 'soft' ? 1.3 : browKind === 'straight' ? 0.3 : 0.6;
+      const iy = by + (browKind === 'worried' ? -1.2 : browKind === 'stern' ? 1.1 : browKind === 'raised' ? -1.6 : 0), oy = by + (browKind === 'worried' ? 1 : browKind === 'stern' ? -0.8 : browKind === 'raised' ? -1.2 : 0.3);
+      const arch = browKind === 'soft' || browKind === 'raised' ? 1.4 : browKind === 'straight' ? 0.3 : 0.6;
       const th = fem ? 1.05 : 1.45;
       const bc = tr.elder ? shade(hair, -0.3) : shade(hair, -0.15);
       out.push(`<path d="M${ix} ${iy - th / 2}Q${(ix + ox) / 2} ${Math.min(iy, oy) - arch - th / 2} ${ox} ${oy}Q${(ix + ox) / 2} ${Math.min(iy, oy) - arch + th * 0.6} ${ix} ${iy + th / 2}Z" fill="${bc}" opacity=".92"/>`);
@@ -273,6 +287,8 @@
       + `<circle cx="${hx - 0.4}" cy="${ny - 0.6}" r=".7" fill="#fff" opacity=".5"/>`);
     if (age === 'elder') out.push(`<path d="M${hx - 5} ${ny - 1}Q${hx - 6.6} ${ny + 2} ${hx - 5.2} ${my + 1.4}M${hx + 5} ${ny - 1}Q${hx + 6.6} ${ny + 2} ${hx + 5.2} ${my + 1.4}" fill="none" stroke="${skinDD}" stroke-width=".6" stroke-linecap="round" opacity=".7"/>`);
 
+    if (freckles) out.push([[-8.6, 3.6], [-7, 4.6], [-9.4, 5], [8.6, 3.6], [7, 4.6], [9.4, 5]].map(([x, y]) => `<circle cx="${hx + x}" cy="${ey + y}" r=".42" fill="${skinDD}" opacity=".8"/>`).join(''));
+    if (mole) out.push(`<circle cx="${hx + moleAt[0]}" cy="${my + moleAt[1]}" r=".55" fill="#5a3a30" opacity=".8"/>`);
     // ── 입 ──
     const lineC = shade(lip, -0.42);
     const lowerLip = (o) => `<path d="M${hx - 2.3} ${my + 1.7}Q${hx} ${my + 3.3} ${hx + 2.3} ${my + 1.7}Q${hx} ${my + 2.2} ${hx - 2.3} ${my + 1.7}Z" fill="${lip}" opacity="${o}"/>`;
@@ -281,6 +297,9 @@
     if (mouth === 'smirk') out.push(lowerLip(0.5) + `<path d="M${hx - 3} ${my + 1}Q${hx + 0.8} ${my + 1.8} ${hx + 3.6} ${my - 0.3}" fill="none" stroke="${lineC}" stroke-width="1" stroke-linecap="round"/>`);
     if (mouth === 'pout') out.push(lowerLip(0.75) + `<path d="M${hx - 2.2} ${my + 1}Q${hx} ${my + 0.4} ${hx + 2.2} ${my + 1}" fill="none" stroke="${lineC}" stroke-width="1" stroke-linecap="round"/>`);
     if (mouth === 'tight') out.push(`<path d="M${hx - 3.3} ${my + 1.4}Q${hx} ${my + 0.3} ${hx + 3.3} ${my + 1.4}" fill="none" stroke="${lineC}" stroke-width="1.05" stroke-linecap="round"/>` + lowerLip(0.35));
+    if (mouth === 'gasp') out.push(`<ellipse cx="${hx}" cy="${my + 1.6}" rx="2.3" ry="2.9" fill="#7a3338" stroke="${lineC}" stroke-width=".9"/><ellipse cx="${hx}" cy="${my + 3}" rx="1.3" ry=".8" fill="#e58b8b"/>`);
+    if (mouth === 'wobble') out.push(`<path d="M${hx - 3.4} ${my + 1.2}l1.4 -.9l1.4 .9l1.4 -.9l1.4 .9l1.4 -.9" fill="none" stroke="${lineC}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>`);
+    if (mouth === 'frown') out.push(`<path d="M${hx - 3.2} ${my + 2}Q${hx} ${my - 0.2} ${hx + 3.2} ${my + 2}" fill="none" stroke="${lineC}" stroke-width="1.05" stroke-linecap="round"/>` + lowerLip(0.3));
     if (mouth === 'grin') out.push(`<path d="M${hx - 3.9} ${my - 0.2}Q${hx} ${my + 4.6} ${hx + 3.9} ${my - 0.2}Q${hx} ${my + 0.7} ${hx - 3.9} ${my - 0.2}Z" fill="#8c3d40" stroke="${lineC}" stroke-width=".8" stroke-linejoin="round"/>`
       + `<path d="M${hx - 3.2} ${my + 0.35}Q${hx} ${my + 1.1} ${hx + 3.2} ${my + 0.35}L${hx + 2.6} ${my + 1.5}Q${hx} ${my + 2} ${hx - 2.6} ${my + 1.5}Z" fill="#fff"/>`
       + `<path d="M${hx - 1.8} ${my + 3}Q${hx} ${my + 3.8} ${hx + 1.8} ${my + 3}" fill="none" stroke="#e58b8b" stroke-width=".9" stroke-linecap="round" opacity=".8"/>`);
@@ -315,6 +334,22 @@
         out.push(`<path d="M${x0} ${hy + 15}Q${x0 + s * 6} ${hy + 22} ${x0 + s * 4} ${hy + 33}Q${x0 + s * 8} ${hy + 25} ${x0 + s * 5} ${hy + 15}Z" fill="url(#${id}hr)" ${S}/>`);
       }
     }
+    // ── 소품 ──
+    const bandD = `M${hx - fw - 1.6} ${hy - 1}C${hx - fw - 3} ${hy - 20 - vol} ${hx + fw + 3} ${hy - 20 - vol} ${hx + fw + 1.6} ${hy - 1}`;
+    if (headband) out.push(`<path d="${bandD}" fill="none" stroke="${INK}" stroke-width="3.6" stroke-linecap="round"/><path d="${bandD}" fill="none" stroke="${pinColor}" stroke-width="2.2" stroke-linecap="round"/>`);
+    if (hairpin) out.push(`<g transform="rotate(-28 ${hx - side * 9} ${hy - 9})"><rect x="${hx - side * 9 - 3}" y="${hy - 10}" width="6" height="2.2" rx="1" fill="${pinColor}" stroke="${INK}" stroke-width=".6"/></g>`);
+    if (phones) out.push(`<path d="M${hx - fw - 1.2} ${ey}C${hx - fw - 3} ${hy - 22 - vol} ${hx + fw + 3} ${hy - 22 - vol} ${hx + fw + 1.2} ${ey}" fill="none" stroke="#2d3142" stroke-width="2.4"/>`
+      + [-1, 1].map(s2 => `<rect x="${hx + s2 * (fw + 1.2) - 2.6}" y="${ey - 3.5}" width="5.2" height="8" rx="2.4" fill="${pinColor}" stroke="${INK}" stroke-width="1"/>`).join(''));
+    if (tr.apron) out.push(`<path d="M24 66V56Q32 54 40 56V66Z" fill="#f4efe4" stroke="${INK}" stroke-width="1"/><path d="M25 56L23 49M39 56L41 49" stroke="#f4efe4" stroke-width="1.6"/><rect x="29" y="59" width="6" height="4" rx="1" fill="none" stroke="${shade(cloth, -0.2)}" stroke-width=".7"/>`);
+    if (tr.whistle) out.push(`<path d="M27 49L31 58M37 49L33 58" stroke="#e2533f" stroke-width="1"/><rect x="29.4" y="57.4" width="5.4" height="3" rx="1.4" fill="#cfd6dc" stroke="${INK}" stroke-width=".7"/>`);
+    // ── 표정 덧그림 ──
+    if (mood === 'shock') out.push(`<g clip-path="url(#${id}f)"><path d="M${hx - 9} ${hy - 13}v8M${hx - 5} ${hy - 14}v10M${hx - 1} ${hy - 14}v9M${hx + 3} ${hy - 14}v10M${hx + 7} ${hy - 13}v8" stroke="#3b4a8a" stroke-width="1" stroke-opacity=".55"/></g>`
+      + `<path d="M${hx + fw + 1} ${hy - 8}q2 3 0 4.4q-2 -1.4 0 -4.4z" fill="#9fd8ff" stroke="${INK}" stroke-width=".6"/><path d="M${hx - fw - 1.5} ${hy - 4}q1.6 2.4 0 3.6q-1.6 -1.2 0 -3.6z" fill="#9fd8ff" stroke="${INK}" stroke-width=".6"/>`);
+    if (mood === 'nervous') out.push(`<path d="M${hx + fw + 0.6} ${hy - 9}q2.4 3.6 0 5.2q-2.4 -1.6 0 -5.2z" fill="#9fd8ff" stroke="${INK}" stroke-width=".6"/>`
+      + `<path d="M${hx - 10} ${ey + 4}l1.4 -1.2M${hx - 8} ${ey + 4.4}l1.4 -1.2M${hx + 7} ${ey + 4.4}l1.4 -1.2M${hx + 9} ${ey + 4}l1.4 -1.2" stroke="#e86b6b" stroke-width=".7" stroke-linecap="round"/>`);
+    if (mood === 'angry') out.push(`<g transform="translate(${hx + fw - 3} ${hy - 14})" stroke="#d8343b" stroke-width="1.2" fill="none" stroke-linecap="round"><path d="M-3 -1q2 0 2 -2M1 -3q0 2 2 2M3 1q-2 0 -2 2M-1 3q0 -2 -2 -2"/></g>`
+      + `<ellipse cx="${hx}" cy="${ey + 4.6}" rx="10" ry="2.4" fill="#ff6b6b" opacity=".2"/>`);
+    if (mood === 'sad') out.push(`<path d="M${hx + eox + 1.4} ${ey + eh * 0.7}q-1.2 2.6 0 4.4q1.4 -1.8 0 -4.4z" fill="#bfe6ff" stroke="#6fa8d6" stroke-width=".5"/>`);
     // 모자 (경비원·기사 등)
     if (tr.cap) {
       const top = hy - 17;
@@ -329,11 +364,11 @@
   }
 
   // size: 픽셀. 사건마다 다른 얼굴이 되도록 seed 는 보통 `${case.id}:${suspect.id}`.
-  function portrait(seed, name, size = 48, cast) {
+  function portrait(seed, name, size = 48, cast, mood) {
     const el = document.createElement('span');
     el.className = 'portrait';
     el.style.width = el.style.height = size + 'px';
-    el.innerHTML = markup(seed, name, cast);
+    el.innerHTML = markup(seed, name, cast, mood);
     return el;
   }
 
@@ -343,7 +378,8 @@
     const i = C && Array.isArray(C.suspects) ? C.suspects.findIndex(x => x.id === s.id) : -1;
     return i < 0 ? null : { base: hashString('cast:' + C.id) % 97, slot: i };
   };
-  const face = (C, s, size) => portrait(((C && C.id) || 'case') + ':' + s.id, s.name, size, castOf(C, s));
+  // mood 를 주면 같은 얼굴에 표정만 바뀐다(이의 있음 = 'shock', 자백 = 'sad' …).
+  const face = (C, s, size, mood) => portrait(((C && C.id) || 'case') + ':' + s.id, s.name, size, castOf(C, s), mood);
 
   DO.svg = svg;
   DO.face = face;

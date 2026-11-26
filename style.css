@@ -541,6 +541,42 @@ button.switch:active { transform: none; }
 .card.calling-card { background: #1f2230; color: #f6e7b0; border-color: var(--ink); transform: rotate(-1.2deg); font-family: var(--font-hand); font-size: 19px; line-height: 1.45; }
 .card.calling-card p { margin: 4px 0; }
 .calling-card .cc-sign { text-align: right; color: var(--yellow); font-size: 16px; }
+/* 탐정증 배지 · 업적 · 범인 도감 */
+.id-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; font-size: 20px; }
+.id-badges span { background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; padding: 1px 5px; box-shadow: var(--lip-sm); }
+.ach-grid { display: grid; gap: 8px; }
+.card.ach { display: flex; gap: 12px; align-items: center; margin: 0; opacity: .6; }
+.card.ach.on { opacity: 1; background: var(--yellow-soft); }
+.card.ach p, .card.ach-new p { margin: 2px 0 0; }
+.ach-icon { font-size: 28px; width: 40px; text-align: center; flex: 0 0 auto; }
+.card.ach-new { display: flex; gap: 12px; align-items: center; background: var(--yellow-soft); animation: achPop .5s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes achPop { from { scale: .6; opacity: 0; } to { scale: 1; opacity: 1; } }
+.album-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 14px; }
+.album-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; min-height: 120px; font-size: 13px; text-align: center; }
+.album-card b { font-size: 12px; line-height: 1.25; word-break: keep-all; }
+.album-card:disabled { opacity: .55; }
+.album-card.open { outline: 3px solid var(--accent); }
+.album-q { width: 64px; height: 64px; border-radius: 10px; background: #d9d3c4; border: 2px dashed var(--ink); display: flex; align-items: center; justify-content: center; font: 800 28px var(--font-display); color: #8a8478; }
+.card.album-detail .profile-head h3 { margin: 0; }
+/* 장 클리어: 화면 전체를 덮는 영상 */
+.chapter-clear { position: fixed; inset: 0; z-index: 60; background: rgba(15, 17, 30, .97); display: flex; align-items: center; justify-content: center; padding: 16px; color: #f6e7b0; animation: ccIn .5s ease-out both; cursor: pointer; }
+.chapter-clear.out { animation: ccOut .4s ease-in both; }
+.chapter-clear .cc-bar { position: absolute; left: 0; right: 0; height: 12vh; background: #000; animation: ccBar .7s ease-out both; }
+.chapter-clear .cc-bar.top { top: 0; } .chapter-clear .cc-bar.bottom { bottom: 0; }
+.chapter-clear .cc-body { position: relative; max-width: 420px; text-align: center; display: grid; gap: 10px; justify-items: center; }
+.chapter-clear .cc-kicker { font: 900 30px var(--font-display); letter-spacing: .12em; color: var(--yellow); text-shadow: 0 3px 0 var(--accent); animation: ccKick .8s .3s cubic-bezier(.3, 1.5, .5, 1) both; }
+.chapter-clear h2 { color: #fff; margin: 0; }
+.chapter-clear .cc-face { position: relative; animation: ccKick .7s .6s both; }
+.chapter-clear .cc-face .stamp { position: absolute; right: -40px; top: -10px; font-size: 22px; }
+.chapter-clear .cc-stars { font-size: 22px; color: var(--yellow); margin: 0; }
+.chapter-clear .cc-card { font-family: var(--font-hand); font-size: 19px; line-height: 1.45; margin: 0; animation: ccIn .8s 1s both; }
+@keyframes ccIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ccOut { to { opacity: 0; } }
+@keyframes ccBar { from { height: 0; } }
+@keyframes ccKick { from { scale: 2.2; opacity: 0; } to { scale: 1; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .chapter-clear, .chapter-clear *, .card.ach-new { animation: none !important; }
+}
 
 /* ---------- 현장 수사 (js/investigate.js) ---------- */
 /* 도입·자백 영상: 레터박스 + 카메라 이동 */
@@ -654,6 +690,15 @@ body.flash::after { content: ""; position: fixed; inset: 0; background: #fff; z-
 .art .bob { animation: bob 1.4s ease-in-out infinite; }
 .art .rgb { animation: rgb 4s linear infinite; }
 .art .chalk { stroke-dasharray: 260; animation: chalk 2.4s ease-out both; }
+.art .beat { stroke-dasharray: 90 160; animation: beat 1.6s linear infinite; }
+.art .wave { animation: wave 3s linear infinite; }
+.art .spin-slow { animation: spin 40s linear infinite; }
+.art .train { animation: train 14s ease-in-out infinite; }
+.art .fire { transform-box: fill-box; transform-origin: 50% 100%; animation: fire .5s ease-in-out infinite alternate; }
+@keyframes beat { from { stroke-dashoffset: 250; } to { stroke-dashoffset: 0; } }
+@keyframes wave { to { transform: translateX(-40px); } }
+@keyframes train { 0%, 30% { transform: translateX(0); } 50%, 60% { transform: translateX(-30px); } 100% { transform: translateX(0); } }
+@keyframes fire { from { transform: scale(1, 1); } to { transform: scale(.9, 1.12); } }
 @keyframes twinkle { 50% { opacity: .25; } }
 @keyframes drift { from { transform: translateX(-60px); } to { transform: translateX(80px); } }
 @keyframes flick { 0%, 47%, 100% { opacity: 1; } 48% { opacity: .35; } 51% { opacity: 1; } 53% { opacity: .5; } 55% { opacity: 1; } }

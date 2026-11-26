@@ -170,15 +170,16 @@ window.DO = (() => {
   }
 
   // 조사 붙이기: josa('아빠', '이/가') → '아빠가', josa('도서부', '은/는') → '도서부는', josa('교실', '으로/로') → '교실로'.
-  // 끝의 괄호·공백은 건너뛰고 마지막 한글(또는 숫자)의 받침을 본다. 판단할 수 없으면(영문 등) '이(가)' 꼴로.
+  // 끝의 괄호·공백은 건너뛰고 마지막 한글(또는 숫자)의 받침을 본다. 영문은 글자 이름으로 읽는다. 판단할 수 없으면 '이(가)' 꼴로.
   const NUM_BATCHIM = { 0: 21, 1: 8, 2: 0, 3: 16, 4: 0, 5: 0, 6: 1, 7: 8, 8: 8, 9: 0 };   // 영 일 이 삼 사 오 육 칠 팔 구
   function josa(word, pair) {
     const w = String(word);
     const [a, b] = pair.split('/');
-    const m = w.match(/([가-힣0-9])[^가-힣0-9]*$/);
+    const m = w.match(/([가-힣0-9A-Za-z])[^가-힣0-9A-Za-z]*$/);
     if (!m) return `${w}${a}(${b})`;
     const ch = m[1];
-    const jong = /[0-9]/.test(ch) ? NUM_BATCHIM[ch] : (ch.charCodeAt(0) - 0xAC00) % 28;
+    // 영문은 마지막 글자를 읽는 소리로: L(엘) M(엠) N(엔) R(알)만 받침이 있다 — USB → USB가, HTML → HTML을
+    const jong = /[0-9]/.test(ch) ? NUM_BATCHIM[ch] : /[A-Za-z]/.test(ch) ? ({ l: 8, m: 16, n: 4, r: 8 }[ch.toLowerCase()] || 0) : (ch.charCodeAt(0) - 0xAC00) % 28;
     if (a === '으로') return w + (jong === 0 || jong === 8 ? '로' : '으로');
     return w + (jong ? a : b);
   }

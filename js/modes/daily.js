@@ -8,13 +8,8 @@
   const { h, render, shuffle, pick, rng, hashString } = DO;
 
   // ---------- 조사(助詞) ----------
-  function josa(word, consonant, vowel) {
-    const ch = word.charCodeAt(word.length - 1);
-    if (ch < 0xAC00 || ch > 0xD7A3) return consonant; // 한글 아니면 받침형
-    return (ch - 0xAC00) % 28 === 0 ? vowel : consonant;
-  }
-  const iga = w => w + josa(w, '이', '가');
-  const eulreul = w => w + josa(w, '을', '를');
+  const iga = w => DO.josa(w, '이/가');
+  const eulreul = w => DO.josa(w, '을/를');
 
   // ---------- 재료 ----------
   const SETTINGS = [

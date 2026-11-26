@@ -1,11 +1,13 @@
 // 모드 8: 명탐정의 길 (혼자 하는 모험 · RPG 식 성장)
 //
-// 수습 탐정으로 등록해 5장 17사건을 차례로 깬다. 사건은 '현장 수사'(js/investigate.js) 방식:
+// 수습 탐정으로 등록해 6장 21사건을 차례로 깬다. 사건은 '현장 수사'(js/investigate.js) 방식:
 //   도입 영상 → 사건 배경 그림 속 장소·사람을 눌러 단서와 진술 모으기(수첩에 자동 기록) → 범인·거짓말·증거를 골라 "이의 있음!"
 // 사건을 깨면 별(남은 신뢰 ❤️, 조수 힌트를 쓰면 줄어듦)에 따라 경험치 → 레벨 업 → 능력 포인트 → 능력.
 // 장마다 마지막은 보스 사건(범인이 한 번 버텨서 거짓말 두 개를 다 찔러야 함). 보스를 잡으면 다음 장이 열리고 '그림자'를 쫓는 이야기가 이어진다.
 // 오늘의 의뢰: 날짜로 만든 자동 생성 사건 3건(하루 한 번씩) — 이야기와 별개로 경험치를 모은다.
-// 저장: do:career = { name, xp, perks{id:랭크}, best{stageId:별}, plays{stageId:횟수}, seen{장id:true}, quests{date, done[]} }
+// 업적(ACHIEVEMENTS)·사건 도감(잡은 범인 모음)·장 클리어 연출.
+// 저장: do:career = { name, xp, perks{id:랭크}, best{stageId:별}, plays{stageId:횟수}, seen{장id:true}, quests{date, done[]},
+//                     ach{업적id:날짜}, stats{wins, perfect, noHint, clutch, boss, quests, fails, comeback} }
 
 (() => {
   const { h, render, store } = DO;
@@ -50,10 +52,18 @@
     {
       id: 'c5', title: '5장 · 그림자의 정체', place: '🎮 온라인',
       story: '그림자는 게임 길드에 숨어 있다. 마지막 대결. 단서는 적고, 조사할 기회도 적다. 한 번의 추리로 끝내야 한다.',
-      clear: '마지막 거짓말이 무너졌다. 그림자의 정체는… 늘 사건 파일을 건네던 소장님. "네가 명탐정이 될 수 있는지 시험해 본 거야. 합격이다, 명탐정."',
+      clear: '마지막 거짓말이 무너졌다. 그림자의 정체는… 늘 사건 파일을 건네던 소장님. "네가 명탐정이 될 수 있는지 시험해 본 거야. 합격이다, 명탐정." 그런데 소장님 책상 위에, 소장님도 처음 본다는 검은 카드가 한 장 더 놓여 있었다.',
       stages: [{ c: 'case-012', lv: 3, boss: true }],
     },
+    {
+      id: 'c6', title: '6장 · 두 번째 그림자', place: '🎡 도시 곳곳',
+      story: '"그림자는 나 하나가 아니었나 보군." 소장님의 얼굴이 굳었다. 놀이공원, 막차 전 지하철역, PC방, 체육관 — 카드에 적힌 장소마다 진짜 사건이 기다린다. 이번엔 시험이 아니다.',
+      clear: '체육관 관중석 맨 위에 검은 카드 한 장. "재미있었어, 명탐정. 다음 판은 더 크게 벌이지." 두 번째 그림자는 아직 어딘가에 있다.',
+      stages: [{ c: 'case-018', lv: 2 }, { c: 'case-019', lv: 2 }, { c: 'case-020', lv: 3 }, { c: 'case-021', lv: 3, boss: true }],
+    },
   ];
+  CHAPTERS.forEach(ch => { ch.stages = ch.stages.filter(st => DO.getCase(st.c)); });
+  for (let i = CHAPTERS.length - 1; i >= 0; i--) if (!CHAPTERS[i].stages.length) CHAPTERS.splice(i, 1);
   CHAPTERS.forEach((ch, ci) => ch.stages.forEach((st, si) => { st.id = st.c; st.t = SCENE; st.ci = ci; st.si = si; st.n = 0; }));
   const ALL = CHAPTERS.flatMap(ch => ch.stages);
   ALL.forEach((st, k) => { st.n = k; });
@@ -76,6 +86,26 @@
     { id: 'dog', icon: '🐕', name: '콩이 훈련', max: 2, text: r => `조수 콩이의 힌트 ${r}번은 별을 깎지 않는다` },
     { id: 'fame', icon: '⭐', name: '명성', max: 2, text: r => `얻는 경험치 +${15 * r}%` },
   ];
+  // 업적: check(D, 도우미) 가 참이 되는 순간 열린다. 도우미 = { cleared, stars3, level, chaptersDone }
+  const ACHIEVEMENTS = [
+    { id: 'first', icon: '🔰', name: '첫 사건', desc: '사건을 처음으로 해결했다', check: (D, x) => x.cleared >= 1 },
+    { id: 'perfect', icon: '🌟', name: '완벽한 추리', desc: '별 3개로 사건을 해결했다', check: D => D.stats.perfect >= 1 },
+    { id: 'nohint', icon: '🙅', name: '콩이는 쉬는 중', desc: '조수 힌트 없이 사건을 해결했다', check: D => D.stats.noHint >= 1 },
+    { id: 'clutch', icon: '😮‍💨', name: '아슬아슬', desc: '신뢰 ❤️ 하나만 남기고 사건을 해결했다', check: D => D.stats.clutch >= 1 },
+    { id: 'comeback', icon: '🔁', name: '칠전팔기', desc: '실패했던 사건을 다시 도전해 해결했다', check: D => D.stats.comeback >= 1 },
+    { id: 'boss1', icon: '👑', name: '보스 사냥꾼', desc: '보스 사건을 처음 해결했다', check: D => D.stats.boss >= 1 },
+    { id: 'boss3', icon: '🃏', name: '그림자 추적자', desc: '보스 사건 3개를 해결했다', check: D => D.stats.boss >= 3 },
+    { id: 'quest1', icon: '📌', name: '게시판 단골', desc: '오늘의 의뢰를 처음 해결했다', check: D => D.stats.quests >= 1 },
+    { id: 'quest10', icon: '📮', name: '의뢰 전문가', desc: '오늘의 의뢰 10건을 해결했다', check: D => D.stats.quests >= 10 },
+    { id: 'lv5', icon: '🪪', name: '형사 승진', desc: '레벨 5에 올랐다', check: (D, x) => x.level >= 5 },
+    { id: 'lv10', icon: '🎖️', name: '베테랑', desc: '레벨 10에 올랐다', check: (D, x) => x.level >= 10 },
+    { id: 'half', icon: '📚', name: '사건 수첩 절반', desc: '이야기 사건을 절반 넘게 해결했다', check: (D, x) => x.cleared * 2 >= x.total },
+    { id: 'ch5', icon: '🕵️', name: '명탐정 합격', desc: '5장까지 모두 해결했다', check: (D, x) => x.chaptersDone >= 5 },
+    { id: 'all', icon: '🏆', name: '모든 그림자를 쫓다', desc: '모든 장의 보스를 해결했다', check: (D, x) => x.chaptersDone >= x.chapters },
+    { id: 'stars10', icon: '✨', name: '별 수집가', desc: '별 3개 사건이 10개', check: (D, x) => x.stars3 >= 10 },
+    { id: 'allstar', icon: '💎', name: '전부 만점', desc: '모든 이야기 사건을 별 3개로 해결했다', check: (D, x) => x.stars3 >= x.total },
+  ];
+  const STAT_KEYS = ['wins', 'perfect', 'noHint', 'clutch', 'boss', 'quests', 'fails', 'comeback'];
   const STAR_K = [0, 0.6, 0.8, 1];
   const baseXP = st => 40 + 30 * st.lv + (st.boss ? 60 : 0);
 
@@ -92,6 +122,8 @@
       perks: nums(d.perks, 9), best: nums(d.best, 3), plays: nums(d.plays, 9999),
       seen: isObj(d.seen) ? d.seen : {},
       quests: { date: q.date, done: q.done.filter(x => Number.isInteger(x)) },
+      ach: isObj(d.ach) ? Object.fromEntries(Object.entries(d.ach).filter(([k, v]) => typeof v === 'string' && ACHIEVEMENTS.some(a => a.id === k))) : {},
+      stats: Object.fromEntries(STAT_KEYS.map(k => [k, nums(d.stats, 99999)[k] | 0])),
     };
     for (const p of PERKS) if (data.perks[p.id] > p.max) data.perks[p.id] = p.max;
     return data;
@@ -102,7 +134,7 @@
   const MODE = {
     id: 'career',
     name: '명탐정의 길',
-    desc: '혼자 하는 모험. 사건 현장을 조사해 단서를 모으고, 거짓말을 증거로 무너뜨린다. 레벨을 올리고 능력을 배우며 5장 17사건 + 오늘의 의뢰.',
+    desc: '혼자 하는 모험. 사건 현장을 조사해 단서를 모으고, 거짓말을 증거로 무너뜨린다. 레벨을 올리고 능력을 배우며 6장 21사건 + 오늘의 의뢰, 업적과 범인 도감까지.',
     ready: true,
     pickCase: false,
     start(root) {
@@ -119,6 +151,16 @@
       const caseOf = st => st.case || DO.getCase(st.c);
       const starText = (n, max = 3) => '★'.repeat(n) + '☆'.repeat(max - n);
       const back = (label, fn) => h('button', { onClick: fn }, label);
+      const chaptersDone = () => CHAPTERS.filter(ch => cleared(ch.stages[ch.stages.length - 1])).length;
+      const achInfo = () => ({ cleared: clearedCount(), total: ALL.length, stars3: ALL.filter(st => (D.best[st.id] | 0) >= 3).length,
+        level: levelOf(D.xp).L, chaptersDone: chaptersDone(), chapters: CHAPTERS.length });
+      // 새로 열린 업적을 저장하고 돌려준다
+      function unlockAch() {
+        const x = achInfo(), got = [];
+        for (const a of ACHIEVEMENTS) if (!D.ach[a.id] && a.check(D, x)) { D.ach[a.id] = today(); got.push(a); }
+        if (got.length) save(D);
+        return got;
+      }
 
       // ---------- 탐정증 (허브) ----------
       function idCard() {
@@ -133,12 +175,14 @@
               h('div', { class: 'id-rank' }, `${rankOf(lv.L)} · Lv ${lv.L}`))),
           h('div', { class: 'xpbar' }, h('span', { style: `width:${pct}%` })),
           h('p', { class: 'muted small-text' }, lv.need ? `다음 레벨까지 ${lv.need - lv.into} XP · 해결 ${clearedCount()}/${ALL.length}` : `최고 레벨! · 해결 ${clearedCount()}/${ALL.length}`),
+          (() => { const got = ACHIEVEMENTS.filter(a => D.ach[a.id]); return got.length ? h('div', { class: 'id-badges', title: '업적 배지' }, got.slice(-8).map(a => h('span', { title: a.name }, a.icon))) : null; })(),
         );
       }
 
       function hub() {
         D = load();
         if (!D.name) return register();
+        unlockAch();
         const nx = nextStage();
         const pts = points();
         const qLeft = 3 - D.quests.done.length;
@@ -146,9 +190,12 @@
           idCard(),
           nx ? h('button', { class: 'primary', onClick: () => briefing(nx) }, `▶ 이어서: ${CHAPTERS[nx.ci].title.split(' · ')[0]} ${nx.si + 1}번 사건${nx.boss ? ' 👑' : ''}`)
             : h('div', { class: 'card good' }, h('p', {}, '🏆 모든 사건을 해결했습니다! 별 3개를 노려 보거나 오늘의 의뢰를 받아 보세요.')),
-          h('button', { class: 'mode', onClick: chapters }, h('b', {}, '📖 사건 수첩'), h('div', { class: 'muted' }, `5장 ${ALL.length}사건 · 별 ${ALL.reduce((s, st) => s + (D.best[st.id] | 0), 0)}/${ALL.length * 3}`)),
-          h('button', { class: 'mode', onClick: skills }, h('b', {}, `🧠 능력${pts > 0 ? ` — 포인트 ${pts}개!` : ''}`), h('div', { class: 'muted' }, '레벨이 오를 때마다 포인트 1개. 힌트·기회·배터리를 강화한다.')),
+          h('button', { class: 'mode', onClick: chapters }, h('b', {}, '📖 사건 수첩'), h('div', { class: 'muted' }, `${CHAPTERS.length}장 ${ALL.length}사건 · 별 ${ALL.reduce((s, st) => s + (D.best[st.id] | 0), 0)}/${ALL.length * 3}`)),
+          h('button', { class: 'mode', onClick: skills }, h('b', {}, `🧠 능력${pts > 0 ? ` — 포인트 ${pts}개!` : ''}`), h('div', { class: 'muted' }, '레벨이 오를 때마다 포인트 1개. 조사 횟수·신뢰·힌트를 강화한다.')),
           h('button', { class: 'mode', onClick: quests }, h('b', {}, `📌 오늘의 의뢰 (${qLeft}/3 남음)`), h('div', { class: 'muted' }, '매일 바뀌는 자동 생성 사건. 경험치를 더 모을 수 있다.')),
+          h('div', { class: 'row' },
+            h('button', { class: 'mode grow', onClick: album }, h('b', {}, '🗂 범인 도감'), h('div', { class: 'muted' }, `잡은 범인 ${clearedCount()}/${ALL.length}`)),
+            h('button', { class: 'mode grow', onClick: achievements }, h('b', {}, '🏅 업적'), h('div', { class: 'muted' }, `${Object.keys(D.ach).length}/${ACHIEVEMENTS.length}`))),
           h('div', { class: 'row' },
             h('button', { class: 'small grow', onClick: register }, '✏️ 이름 바꾸기'),
             h('button', { class: 'small grow', onClick: () => { if (confirm('레벨·능력·별을 모두 지우고 처음부터 시작할까요?')) { store.del(KEY); hub(); } } }, '🗑 처음부터')),
@@ -276,9 +323,21 @@
         }
         xp = Math.round(xp * (1 + 0.15 * rank('fame')));
         D.xp += xp;
+        const failedBefore = !quest && !prev && (D.plays[st.id] | 0) > 1;
         if (!quest && stars > prev) D.best[st.id] = stars;
         if (quest && stars) D.quests.done.push(quest.slot);
+        const S = D.stats;
+        if (stars) {
+          S.wins++;
+          if (stars === 3) S.perfect++;
+          if ((res.hints | 0) === 0) S.noHint++;
+          if (res.hearts === 1) S.clutch++;
+          if (st.boss && !prev) S.boss++;
+          if (quest) S.quests++;
+          if (failedBefore) S.comeback++;
+        } else S.fails++;
         save(D);
+        const newAch = unlockAch();
         const after = levelOf(D.xp), up = after.L - before.L;
         const newRank = rankOf(after.L) !== rankBefore ? rankOf(after.L) : null;
         const opened = ALL.filter((s, k) => !wasOpen[k] && stageOpen(s));
@@ -302,6 +361,7 @@
             h('h3', {}, `🎉 레벨 업! Lv ${before.L} → ${after.L}`),
             h('p', {}, `능력 포인트 +${up}`, newRank ? h('span', {}, ' · 새 칭호 ', h('b', {}, newRank)) : null)) : null,
           bossClear ? h('div', { class: 'card calling-card' }, h('p', {}, ch.clear), h('div', { class: 'cc-sign' }, '— 🃏 그림자의 흔적')) : null,
+          newAch.map(a => h('div', { class: 'card ach-new' }, h('span', { class: 'ach-icon' }, a.icon), h('div', {}, h('b', {}, `업적 달성 · ${a.name}`), h('p', { class: 'muted small-text' }, a.desc)))),
           chOpened.map(c => h('div', { class: 'card good' }, h('p', {}, `🔓 ${DO.josa(c.title, '이/가')} 열렸습니다!`))),
           !chOpened.length && opened.length ? h('p', { class: 'muted' }, `🔓 다음 사건이 열렸습니다.`) : null,
           !quest && nx ? h('button', { class: 'primary', onClick: () => briefing(nx) }, `▶ 다음 사건${nx.boss ? ' 👑' : ''}`) : null,
@@ -313,8 +373,74 @@
         // 연출: 경험치 세기 → 막대 차오름 → 레벨 업이면 팡파르
         if (DO.fx) DO.fx.count(xpNum, xp, 800); else xpNum.textContent = String(xp);
         requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = pct + '%'; }));
-        if (up && DO.fx) setTimeout(() => DO.fx.win(), 650);
+        if (bossClear) chapterClear(ch);
+        else if (up && DO.fx) setTimeout(() => DO.fx.win(), 650);
+        else if (newAch.length) sfx('fanfare', { delay: 0.3 });
         else if (stars) sfx('good', { delay: 0.1 });
+      }
+
+      // ---------- 장 클리어 연출 (보스를 처음 잡았을 때, 보상 화면 위에 덮어씀) ----------
+      function chapterClear(ch) {
+        const got = ch.stages.reduce((s2, st2) => s2 + (D.best[st2.id] | 0), 0);
+        const boss = caseOf(ch.stages[ch.stages.length - 1]);
+        const culprit = boss && boss.suspects.find(x => x.id === boss.culprit);
+        const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 400); };
+        const el = h('div', { class: 'chapter-clear', role: 'dialog', 'aria-label': '장 클리어', onClick: close },
+          h('div', { class: 'cc-bar top' }), h('div', { class: 'cc-bar bottom' }),
+          h('div', { class: 'cc-body' },
+            h('div', { class: 'cc-kicker' }, 'CHAPTER CLEAR'),
+            h('h2', {}, ch.title),
+            culprit ? h('div', { class: 'cc-face' }, DO.face(boss, culprit, 96, 'sad'), h('div', { class: 'stamp win' }, '검거')) : null,
+            h('p', { class: 'cc-stars' }, `★ ${got} / ${ch.stages.length * 3}`),
+            h('p', { class: 'cc-card' }, '🃏 ', ch.clear),
+            h('p', { class: 'muted small-text' }, '화면을 누르면 닫힙니다')));
+        document.body.append(el);
+        sfx('fanfare', { delay: 0.2 });
+        if (DO.fx) setTimeout(() => DO.fx.win(), 900);
+      }
+
+      // ---------- 범인 도감 ----------
+      function album(openId) {
+        const cards = ALL.map(st => {
+          const C = caseOf(st), done = cleared(st);
+          const culprit = C && C.suspects.find(x => x.id === C.culprit);
+          return h('button', { class: 'album-card' + (done ? ' done' : '') + (openId === st.id ? ' open' : ''), disabled: !done, 'data-quiet': '1', onClick: () => album(openId === st.id ? null : st.id) },
+            done && culprit ? DO.face(C, culprit, 64, 'sad') : h('span', { class: 'album-q' }, '?'),
+            h('b', {}, done && culprit ? culprit.name : '???'),
+            h('span', { class: 'node-stars' }, done ? starText(D.best[st.id] | 0) : `${CHAPTERS[st.ci].title.split(' · ')[0]}`));
+        });
+        const sel = openId && ALL.find(st => st.id === openId);
+        const C = sel && caseOf(sel);
+        const culprit = C && C.suspects.find(x => x.id === C.culprit);
+        render(root,
+          h('h2', {}, '🗂 범인 도감'),
+          h('p', { class: 'muted' }, `해결한 사건의 범인이 여기 모인다. ${clearedCount()}/${ALL.length}명 검거. 카드를 누르면 사건 기록을 본다.`),
+          sel && C && culprit ? h('div', { class: 'card album-detail' },
+            h('div', { class: 'profile-head' }, DO.face(C, culprit, 72, 'sad'), h('div', {}, h('h3', {}, C.title), h('p', { class: 'muted small-text' }, `${CHAPTERS[sel.ci].title} · ${starText(D.best[sel.id] | 0)}`))),
+            h('p', {}, C.intro),
+            h('p', {}, '범인: ', h('b', {}, culprit.name)),
+            h('p', { class: 'muted small-text' }, '🗂 결정적 증거: ', (C.clues.filter(c => c.exposes).map(c => c.text)[0]) || '-'),
+            h('button', { class: 'small', onClick: () => briefing(sel) }, '🔁 이 사건 다시 하기')) : null,
+          h('div', { class: 'album-grid' }, cards),
+          back('← 탐정증', hub),
+        );
+      }
+
+      // ---------- 업적 ----------
+      function achievements() {
+        const n = Object.keys(D.ach).length;
+        render(root,
+          h('h2', {}, '🏅 업적'),
+          h('p', { class: 'muted' }, `${n}/${ACHIEVEMENTS.length} 달성. 달성한 업적의 배지는 탐정증에 붙는다.`),
+          h('div', { class: 'ach-grid' }, ACHIEVEMENTS.map(a => {
+            const on = !!D.ach[a.id];
+            return h('div', { class: 'card ach' + (on ? ' on' : '') },
+              h('span', { class: 'ach-icon' }, on ? a.icon : '🔒'),
+              h('div', {}, h('b', {}, a.name), h('p', { class: 'muted small-text' }, a.desc + (on ? ` · ${D.ach[a.id]}` : ''))));
+          })),
+          h('p', { class: 'muted small-text' }, `기록: 해결 ${D.stats.wins} · 별 3개 ${D.stats.perfect} · 힌트 없이 ${D.stats.noHint} · 보스 ${D.stats.boss} · 의뢰 ${D.stats.quests} · 실패 ${D.stats.fails}`),
+          back('← 탐정증', hub),
+        );
       }
 
       // ---------- 능력 ----------
