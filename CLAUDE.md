@@ -58,7 +58,9 @@ js/investigate.js     현장 수사 엔진(명탐정의 길의 사건 진행). D
                       school town event shop travel(공항) online + hospital hotel camping pool library apartment wedding cafe living amusement subway pcroom gym
                       + museum cinema aquarium market.
                       테마는 THEME_RULES 의 장소 낱말을 scene.name → 제목 → 소개 순으로 찾고, 없으면 category. 미리보기: DO.investigate.art(테마, 밤?), DO.investigate.themeOf(C).
-                      onDone({ win, stars, hints(힌트 쓴 횟수), hearts(남은 신뢰) }).
+                      onDone({ win, stars, hints(힌트 쓴 횟수), hearts(남은 신뢰), rank('S'|'A'|'B'|'C') }).
+                      랭크(rankNow) = 100 - 25×헛짚기 - 15×힌트 + 조사 아낀 비율 ±10 + 반론 러시 한 번에 성공 +10 → S≥95 A≥75 B≥50. 결과 화면에 📤 공유(navigator.share, 없으면 복사).
+                      보스 반격 뒤 '반론 러시'(rush): 범인의 남은 말 + 허세 2개가 3.6초씩 흘러가고, 증거를 들고 "이의 있음!"(judge 에 retry 로 러시로 돌아옴). 3바퀴면 멈춤.
 js/alibi-engine.js    알리바이 깨기 엔진(DOM 없음): 퍼즐 생성기 + 유일해 검증기. DO.alibi.generate(C, level, variant) / solve / feasible / describe
 js/account-config.js  Appwrite 프로젝트 주소(공개돼도 되는 값). projectId 를 null 로 두면 로그인 기능이 꺼진다.
 js/account.js         계정(Appwrite 이메일·비밀번호) + 기록 동기화. 헤더 👤 → 계정 시트(DO.openSheet). 로그인하면 localStorage 의 do:* 전체(do:apiKey 제외)를
@@ -171,7 +173,8 @@ DO.registerCase({
   경험치 = (40 + 30×난이도 + 보스 60) × 별 계수(★1 0.6 / ★2 0.8 / ★3 1.0) × 명성. 다시 깨면 별이 오른 만큼(최소 15%), 실패 10. 레벨 L→L+1 에 100+60(L-1), 최고 15. 칭호 RANKS.
   능력(PERKS, 레벨마다 포인트 1, 언제든 되돌리기): 부지런한 발(조사 +3/랭크), 돋보기(단서 장소 반짝임), 직감(결백한 사람 1명 ✅), 침착함(신뢰 +1/랭크), 콩이 훈련(무료 힌트), 명성(경험치 +15%/랭크).
   오늘의 의뢰: 날짜로 만든 생성 사건 3건(제목이 겹치지 않게 소금을 바꿈), 난이도 = 레벨에 맞춰. 하나에 하루 한 번 보상. 저장 `do:career`(load() 에서 모양 검사).
-  업적 ACHIEVEMENTS 16개(check(D, {cleared,total,stars3,level,chaptersDone,chapters})) — 보상 화면과 탐정증을 열 때 unlockAch() 로 확인, `ach{id:날짜}`. 통계 `stats`(wins perfect noHint clutch boss quests fails comeback).
+  사건 랭크 ranks{stageId: 최고 랭크}(지도·도감에 표시). 오늘의 의뢰 연속 streak{last, n, best}: 어제·오늘 해결했으면 이어짐, 의뢰 경험치 +10%/일(최대 +50%), 7칸 도장판.
+  업적 ACHIEVEMENTS 20개(S 랭크·에이스 탐정·사흘 연속·일주일 탐정 추가)(check(D, {cleared,total,stars3,level,chaptersDone,chapters})) — 보상 화면과 탐정증을 열 때 unlockAch() 로 확인, `ach{id:날짜}`. 통계 `stats`(wins perfect noHint clutch boss quests fails comeback).
   탐정증에 업적 배지(최근 8개). 🎨 탐정증 꾸미기(deco{card, stamp, title, face, motto}): 카드 색 CARD_THEMES 8가지·도장 STAMPS 는 레벨·업적으로 열림, 칭호 = 계급 + 딴 업적 이름, 얼굴 6가지(씨앗 career:이름:n), 한마디 24자. 🗂 범인 도감: 해결한 사건의 범인 얼굴('sad')·별, 누르면 사건 기록과 다시 하기. 보스를 처음 잡으면 장 클리어 영상(.chapter-clear, 누르면 닫힘).
   검사: 손으로 쓴 17사건 + 생성 사건 40개 모두 장면이 만들어지고 폭로 가능한 거짓말이 2개씩 있음(보스 가능)을 브라우저에서 확인. 이전 방식(알리바이 표·방탈출)은 사용자 피드백("글씨를 나열한 표 같다, 어렵다")으로 바꿨다.
   alibi.js / escape.js 의 ctx.preset 통로는 그대로 남아 있다(지금은 안 씀).

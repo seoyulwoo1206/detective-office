@@ -56,6 +56,14 @@
     const ach = { ...(isObj(lo.ach) ? lo.ach : {}) };
     for (const [k, v] of Object.entries(isObj(hi.ach) ? hi.ach : {})) ach[k] = ach[k] && ach[k] < v ? ach[k] : v;
     out.ach = ach;
+    const RO = ['C', 'B', 'A', 'S'], ra = isObj(a.ranks) ? a.ranks : {}, rb = isObj(b.ranks) ? b.ranks : {};
+    out.ranks = { ...ra };
+    for (const [k, v] of Object.entries(rb)) if (!out.ranks[k] || RO.indexOf(v) > RO.indexOf(out.ranks[k])) out.ranks[k] = v;
+    const sa = isObj(a.streak) ? a.streak : null, sb = isObj(b.streak) ? b.streak : null;
+    if (sa || sb) {
+      const pick = !sa ? sb : !sb ? sa : (sa.last || '') > (sb.last || '') ? sa : (sb.last || '') > (sa.last || '') ? sb : ((sa.n | 0) >= (sb.n | 0) ? sa : sb);
+      out.streak = { ...pick, best: Math.max(sa ? sa.best | 0 : 0, sb ? sb.best | 0 : 0, pick.n | 0) };
+    }
     const qa = isObj(a.quests) ? a.quests : null, qb = isObj(b.quests) ? b.quests : null;
     if (qa && qb && qa.date === qb.date) out.quests = { date: qa.date, done: [...new Set([...(qa.done || []), ...(qb.done || [])])] };
     else out.quests = !qa ? qb : !qb ? qa : qa.date > qb.date ? qa : qb;

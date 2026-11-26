@@ -8,7 +8,8 @@
 // 업적(ACHIEVEMENTS)·사건 도감(잡은 범인 모음)·장 클리어 연출.
 // 저장: do:career = { name, xp, perks{id:랭크}, best{stageId:별}, plays{stageId:횟수}, seen{장id:true}, quests{date, done[]},
 //                     ach{업적id:날짜}, stats{wins, perfect, noHint, clutch, boss, quests, fails, comeback},
-//                     deco{card, stamp, title, face, motto} — 탐정증 꾸미기 }
+//                     deco{card, stamp, title, face, motto} — 탐정증 꾸미기, ranks{stageId:'S'|'A'|'B'|'C'} — 최고 랭크,
+//                     streak{last:날짜, n, best} — 오늘의 의뢰 연속 해결 }
 
 (() => {
   const { h, render, store } = DO;
@@ -109,6 +110,10 @@
     { id: 'half', icon: '📚', name: '사건 수첩 절반', desc: '이야기 사건을 절반 넘게 해결했다', check: (D, x) => x.cleared * 2 >= x.total },
     { id: 'ch5', icon: '🕵️', name: '명탐정 합격', desc: '5장까지 모두 해결했다', check: (D, x) => x.chaptersDone >= 5 },
     { id: 'all', icon: '🏆', name: '모든 그림자를 쫓다', desc: '모든 장의 보스를 해결했다', check: (D, x) => x.chaptersDone >= x.chapters },
+    { id: 'rankS', icon: '⚡', name: 'S 랭크', desc: '헛짚기·힌트 없이 조사를 아껴 S 랭크로 해결했다', check: D => D.stats.rankS >= 1 },
+    { id: 'rankS5', icon: '🥇', name: '에이스 탐정', desc: 'S 랭크 사건이 5개', check: D => Object.values(D.ranks).filter(r => r === 'S').length >= 5 },
+    { id: 'streak3', icon: '🔥', name: '사흘 연속', desc: '오늘의 의뢰를 사흘 연속 해결했다', check: D => D.streak.best >= 3 },
+    { id: 'streak7', icon: '📅', name: '일주일 탐정', desc: '오늘의 의뢰를 7일 연속 해결했다', check: D => D.streak.best >= 7 },
     { id: 'stars10', icon: '✨', name: '별 수집가', desc: '별 3개 사건이 10개', check: (D, x) => x.stars3 >= 10 },
     { id: 'allstar', icon: '💎', name: '전부 만점', desc: '모든 이야기 사건을 별 3개로 해결했다', check: (D, x) => x.stars3 >= x.total },
   ];
@@ -123,11 +128,17 @@
     { id: 'lens', icon: '🔍', name: '돋보기' }, { id: 'paw', icon: '🐾', name: '콩이 발자국', need: { ach: 'nohint' } },
     { id: 'star', icon: '🌟', name: '별', need: { ach: 'perfect' } }, { id: 'pin', icon: '📌', name: '압정', need: { ach: 'quest1' } },
     { id: 'crown', icon: '👑', name: '왕관', need: { ach: 'boss1' } }, { id: 'joker', icon: '🃏', name: '검은 카드', need: { ach: 'boss3' } },
-    { id: 'medal', icon: '🎖️', name: '훈장', need: { lv: 10 } }, { id: 'gem', icon: '💎', name: '보석', need: { ach: 'allstar' } },
+    { id: 'medal', icon: '🎖️', name: '훈장', need: { lv: 10 } }, { id: 'bolt', icon: '⚡', name: '번개', need: { ach: 'rankS' } },
+    { id: 'fire', icon: '🔥', name: '불꽃', need: { ach: 'streak7' } }, { id: 'gem', icon: '💎', name: '보석', need: { ach: 'allstar' } },
     { id: 'none', icon: '', name: '도장 없음' },
   ];
   const FACES = 6;   // 고를 수 있는 얼굴 수 (씨앗 'career:이름:n')
-  const STAT_KEYS = ['wins', 'perfect', 'noHint', 'clutch', 'boss', 'quests', 'fails', 'comeback'];
+  const STAT_KEYS = ['wins', 'perfect', 'noHint', 'clutch', 'boss', 'quests', 'fails', 'comeback', 'rankS'];
+  const RANK_ORDER = ['C', 'B', 'A', 'S'];
+  const betterRank = (a, b) => (RANK_ORDER.indexOf(a) >= RANK_ORDER.indexOf(b) ? a : b);
+  const STREAK_MAX = 5;                                    // 연속 보너스: 하루마다 +10%, 최대 +50%
+  const dayStr = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return dayStr(d); };
   const STAR_K = [0, 0.6, 0.8, 1];
   const baseXP = st => 40 + 30 * st.lv + (st.boss ? 60 : 0);
 
@@ -146,6 +157,13 @@
       quests: { date: q.date, done: q.done.filter(x => Number.isInteger(x)) },
       ach: isObj(d.ach) ? Object.fromEntries(Object.entries(d.ach).filter(([k, v]) => typeof v === 'string' && ACHIEVEMENTS.some(a => a.id === k))) : {},
       stats: Object.fromEntries(STAT_KEYS.map(k => [k, nums(d.stats, 99999)[k] | 0])),
+      ranks: isObj(d.ranks) ? Object.fromEntries(Object.entries(d.ranks).filter(([, v]) => RANK_ORDER.includes(v))) : {},
+      streak: (() => {
+        const x = isObj(d.streak) ? d.streak : {};
+        const last = typeof x.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.last) ? x.last : '';
+        const n = Number.isInteger(x.n) && x.n > 0 ? Math.min(x.n, 9999) : 0;
+        return { last, n: last ? n : 0, best: Math.max(n, Number.isInteger(x.best) && x.best > 0 ? Math.min(x.best, 9999) : 0) };
+      })(),
       deco: (() => {
         const x = isObj(d.deco) ? d.deco : {};
         return {
@@ -195,6 +213,9 @@
       }
 
       // ---------- 탐정증 (허브) ----------
+      // 오늘의 의뢰 연속: 오늘이나 어제 해결했으면 이어지는 중
+      const streakNow = () => (D.streak.last === today() || D.streak.last === yesterday() ? D.streak.n : 0);
+      const streakBonus = n => Math.min(STREAK_MAX, Math.max(0, n - 1)) * 0.1;
       // 꾸미기: 열렸는지, 무엇으로 열리는지
       const isOpen = need => !need || (need.lv ? levelOf(D.xp).L >= need.lv : !!D.ach[need.ach]);
       const needText = need => need.lv ? `Lv ${need.lv}` : `업적 "${(ACHIEVEMENTS.find(a => a.id === need.ach) || {}).name}"`;
@@ -235,7 +256,7 @@
             : h('div', { class: 'card good' }, h('p', {}, '🏆 모든 사건을 해결했습니다! 별 3개를 노려 보거나 오늘의 의뢰를 받아 보세요.')),
           h('button', { class: 'mode', onClick: chapters }, h('b', {}, '📖 사건 수첩'), h('div', { class: 'muted' }, `${CHAPTERS.length}장 ${ALL.length}사건 · 별 ${ALL.reduce((s, st) => s + (D.best[st.id] | 0), 0)}/${ALL.length * 3}`)),
           h('button', { class: 'mode', onClick: skills }, h('b', {}, `🧠 능력${pts > 0 ? ` — 포인트 ${pts}개!` : ''}`), h('div', { class: 'muted' }, '레벨이 오를 때마다 포인트 1개. 조사 횟수·신뢰·힌트를 강화한다.')),
-          h('button', { class: 'mode', onClick: quests }, h('b', {}, `📌 오늘의 의뢰 (${qLeft}/3 남음)`), h('div', { class: 'muted' }, '매일 바뀌는 자동 생성 사건. 경험치를 더 모을 수 있다.')),
+          h('button', { class: 'mode', onClick: quests }, h('b', {}, `📌 오늘의 의뢰 (${qLeft}/3 남음)${streakNow() ? ` · 🔥${streakNow()}일` : ''}`), h('div', { class: 'muted' }, '매일 바뀌는 자동 생성 사건. 경험치를 더 모을 수 있다.')),
           h('div', { class: 'row' },
             h('button', { class: 'mode grow', onClick: album }, h('b', {}, '🗂 범인 도감'), h('div', { class: 'muted' }, `잡은 범인 ${clearedCount()}/${ALL.length}`)),
             h('button', { class: 'mode grow', onClick: achievements }, h('b', {}, '🏅 업적'), h('div', { class: 'muted' }, `${Object.keys(D.ach).length}/${ACHIEVEMENTS.length}`))),
@@ -339,7 +360,7 @@
               h('div', { class: 'node-label' },
                 h('b', {}, C ? C.title : st.c),
                 h('span', { class: 'muted small-text' }, `${TYPE[st.t].icon} ${LV[st.t][st.lv]}${st.boss ? ' · 보스' : ''}`),
-                open ? h('span', { class: 'node-stars' }, starText(b)) : null));
+                open ? h('span', { class: 'node-stars' }, starText(b), D.ranks[st.id] ? h('span', { class: 'node-rank' }, D.ranks[st.id]) : null) : null));
           })),
           bossDone ? h('div', { class: 'card calling-card' }, h('p', {}, ch.clear), h('div', { class: 'cc-sign' }, '— 🃏 그림자의 흔적')) : null,
           bossDone && CHAPTERS[ci + 1] ? h('button', { class: 'primary', onClick: () => chapterMap(ci + 1) }, `다음 장으로 → ${CHAPTERS[ci + 1].title}`) : null,
@@ -401,8 +422,19 @@
           const full = Math.round(baseXP(st) * STAR_K[stars]);
           xp = quest ? full : Math.max(full - Math.round(baseXP(st) * STAR_K[prev]), Math.round(baseXP(st) * 0.15));
         }
-        xp = Math.round(xp * (1 + 0.15 * rank('fame')));
+        // 오늘의 의뢰 연속 해결
+        let streakUp = false;
+        if (quest && stars && D.streak.last !== today()) {
+          D.streak.n = D.streak.last === yesterday() ? D.streak.n + 1 : 1;
+          D.streak.last = today(); D.streak.best = Math.max(D.streak.best, D.streak.n);
+          streakUp = true;
+        }
+        const sBonus = quest && stars ? streakBonus(D.streak.n) : 0;
+        xp = Math.round(xp * (1 + 0.15 * rank('fame') + sBonus));
         D.xp += xp;
+        const rk = stars && res.rank && RANK_ORDER.includes(res.rank) ? res.rank : null;
+        const prevRank = quest ? null : D.ranks[st.id] || null;
+        if (rk && !quest) D.ranks[st.id] = prevRank ? betterRank(rk, prevRank) : rk;
         const failedBefore = !quest && !prev && (D.plays[st.id] | 0) > 1;
         if (!quest && stars > prev) D.best[st.id] = stars;
         if (quest && stars) D.quests.done.push(quest.slot);
@@ -415,6 +447,7 @@
           if (st.boss && !prev) S.boss++;
           if (quest) S.quests++;
           if (failedBefore) S.comeback++;
+          if (rk === 'S') S.rankS++;
         } else S.fails++;
         save(D);
         const newAch = unlockAch();
@@ -434,6 +467,8 @@
           h('h2', {}, stars ? '📁 사건 종결' : '📂 사건 미해결'),
           h('div', { class: 'card center reward' },
             h('div', { class: 'reward-stars' }, [1, 2, 3].map(k => h('span', { class: k <= stars ? 'on' : '' }, '★'))),
+            rk ? h('p', { class: 'small-text' }, '랭크 ', h('b', {}, rk), prevRank && RANK_ORDER.indexOf(rk) > RANK_ORDER.indexOf(prevRank) ? ` (최고 기록 ${prevRank} → ${rk}!)` : prevRank && prevRank !== rk ? ` · 최고 ${prevRank}` : '') : null,
+            streakUp ? h('p', { class: 'small-text' }, `🔥 의뢰 연속 ${D.streak.n}일째!${sBonus ? ` 경험치 +${Math.round(sBonus * 100)}%` : ' 내일도 해결하면 보너스!'}`) : null,
             h('p', {}, '+', xpNum, ' XP', stars ? '' : ' (실패해도 경험은 남는다)'),
             h('div', { class: 'xpbar' }, bar),
             h('p', { class: 'muted small-text' }, `${rankOf(after.L)} · Lv ${after.L}${after.need ? ` · 다음 레벨까지 ${after.need - after.into} XP` : ''}`)),
@@ -487,7 +522,7 @@
           return h('button', { class: 'album-card' + (done ? ' done' : '') + (openId === st.id ? ' open' : ''), disabled: !done, 'data-quiet': '1', onClick: () => album(openId === st.id ? null : st.id) },
             done && culprit ? DO.face(C, culprit, 64, 'sad') : h('span', { class: 'album-q' }, '?'),
             h('b', {}, done && culprit ? culprit.name : '???'),
-            h('span', { class: 'node-stars' }, done ? starText(D.best[st.id] | 0) : `${CHAPTERS[st.ci].title.split(' · ')[0]}`));
+            h('span', { class: 'node-stars' }, done ? starText(D.best[st.id] | 0) + (D.ranks[st.id] ? ` ${D.ranks[st.id]}` : '') : `${CHAPTERS[st.ci].title.split(' · ')[0]}`));
         });
         const sel = openId && ALL.find(st => st.id === openId);
         const C = sel && caseOf(sel);
@@ -568,12 +603,20 @@
         render(root,
           h('h2', {}, '📌 오늘의 의뢰'),
           h('p', { class: 'muted' }, '사무소 게시판에 붙은 오늘의 의뢰. 매일 자정에 바뀌고, 하나에 한 번씩 보상을 받는다. 난이도는 레벨에 맞춰 오른다.'),
+          (() => {
+            const n = streakNow(), doneToday = D.streak.last === today();
+            return h('div', { class: 'card center' },
+              h('p', {}, h('b', {}, n ? `🔥 연속 ${n}일` : '🔥 연속 기록 없음'), n > 1 ? ` · 의뢰 경험치 +${Math.round(streakBonus(n) * 100)}%` : ''),
+              h('div', { class: 'streak' }, Array.from({ length: 7 }, (_, i) => h('span', { class: i < (n % 7 || (n ? 7 : 0)) ? 'on' : '' }, i < (n % 7 || (n ? 7 : 0)) ? '🐾' : String(i + 1)))),
+              h('p', { class: 'muted small-text' }, doneToday ? '오늘 도장 완료! 내일도 하나 해결하면 이어져요.' : n ? '오늘 의뢰를 하나 해결하면 도장이 찍혀요. 하루라도 거르면 처음부터!' : '매일 의뢰를 하나씩 해결하면 도장이 찍히고, 이어질수록 경험치 보너스가 커져요(최대 +50%).'),
+              D.streak.best > 1 ? h('p', { class: 'muted small-text' }, `최고 기록 ${D.streak.best}일`) : null);
+          })(),
           list.map(q => {
             const done = D.quests.done.includes(q.slot);
             const C = q.st.case;
             return h('button', { class: 'mode' + (done ? ' locked' : ''), disabled: done || !C, onClick: () => briefing(q.st, q) },
               h('b', {}, `${done ? '✅ ' : ''}${C ? C.title : '의뢰 준비 중'}`),
-              h('div', { class: 'muted' }, `${TYPE[q.st.t].icon} ${TYPE[q.st.t].name} · ${LV[q.st.t][q.st.lv]} · 최대 ${Math.round(baseXP(q.st) * (1 + 0.15 * rank('fame')))} XP${done ? ' · 해결함' : ''}`));
+              h('div', { class: 'muted' }, `${TYPE[q.st.t].icon} ${TYPE[q.st.t].name} · ${LV[q.st.t][q.st.lv]} · 최대 ${Math.round(baseXP(q.st) * (1 + 0.15 * rank('fame') + streakBonus(D.streak.last === today() ? D.streak.n : streakNow() + 1)))} XP${done ? ' · 해결함' : ''}`));
           }),
           back('← 탐정증', hub),
         );

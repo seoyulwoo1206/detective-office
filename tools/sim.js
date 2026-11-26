@@ -121,7 +121,7 @@
     // 배경음: 화면에 붙은 분위기가 화면과 맞는지 (지목 화면 = suspense, 결과 화면 = result)
     if (DO.music && DO.music.on) {
       const m = DO.music.mood, h2 = (root.querySelector('h2') || {}).textContent || '';
-      if (m === 'suspense' && !/지목|거짓말쟁이는|범인은|정답|답$|거짓은|증거는|추리/.test(h2)) issues.push(`배경음 suspense 인데 화면은 "${h2.slice(0, 16)}"`);
+      if (m === 'suspense' && !/지목|거짓말쟁이는|범인은|정답|답$|거짓은|증거는|추리|몰아붙인다/.test(h2)) issues.push(`배경음 suspense 인데 화면은 "${h2.slice(0, 16)}"`);
       if (m === 'hush' && !root.querySelector('.handoff')) issues.push(`배경음이 먹먹(hush)한데 폰 넘기기 화면이 아님: "${h2.slice(0, 16)}"`);
       if ((m === 'victory' || m === 'defeat') && !isEnd()) issues.push(`배경음 ${m} 인데 결과 화면이 아님`);
     }

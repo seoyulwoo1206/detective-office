@@ -773,3 +773,34 @@ body.flash::after { content: ""; position: fixed; inset: 0; background: #fff; z-
 .fold-pick button { min-height: 64px; font-size: 18px; }
 .secret-hint { background: var(--yellow-soft); }
 .big-emoji { font-size: 56px; }
+
+/* ---------- 사건 랭크 · 반론 러시 (investigate.js) ---------- */
+.rank-badge { display: inline-grid; place-items: center; width: 84px; height: 84px; margin: 6px auto 0; border: 3px solid var(--ink); border-radius: 18px;
+  font-family: var(--font-display); font-size: 48px; font-weight: 800; line-height: 1; box-shadow: var(--lip); rotate: -6deg;
+  background: var(--paper); animation: rankPop .6s .35s cubic-bezier(.2, 1.6, .4, 1) both; }
+.rank-badge small { font-size: 10px; letter-spacing: .2em; margin-bottom: -10px; }
+.rank-badge.rank-S { background: linear-gradient(135deg, #fff3b0, #f2c14e 55%, #ffe58a); color: #b4361f; }
+.rank-badge.rank-A { background: var(--ok-soft); color: var(--ok); }
+.rank-badge.rank-B { background: var(--info-soft, #e3effb); color: var(--info); }
+.rank-badge.rank-C { background: #eee; color: #666; }
+@keyframes rankPop { from { scale: 2.4; opacity: 0; } to { scale: 1; opacity: 1; } }
+.node-rank { font-family: var(--font-display); font-weight: 800; font-size: 13px; margin-left: 4px; color: var(--accent); }
+.rush { text-align: center; }
+.rush-title { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--accent); letter-spacing: .04em; animation: twinkleTitle 1s steps(2) infinite; }
+@keyframes twinkleTitle { 50% { opacity: .7; } }
+.rush-face { margin: 4px auto; }
+.rush-say { margin: 8px 0; padding: 14px 12px 10px; min-height: 92px; background: var(--ink); color: #fff; border-radius: 14px; border: 2px solid var(--ink); box-shadow: var(--shadow); }
+.rush-line { margin: 0 0 10px; font-size: 17px; font-weight: 700; line-height: 1.4; }
+.rush-line.in { animation: rushIn .35s ease-out both; }
+@keyframes rushIn { from { translate: 60px 0; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+.rush-bar { height: 6px; background: rgba(255, 255, 255, .2); border-radius: 99px; overflow: hidden; }
+.rush-bar span { display: block; height: 100%; width: 100%; background: var(--yellow); }
+@keyframes rushBar { from { width: 100%; } to { width: 0; } }
+.rush-clues { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.rush-clue { text-align: left; }
+.rush-obj { font-family: var(--font-display); font-size: 24px; min-height: 64px; }
+.streak { display: flex; gap: 6px; justify-content: center; margin: 6px 0; }
+.streak span { width: 34px; height: 34px; display: grid; place-items: center; border: 2px dashed var(--border-strong, #bbb); border-radius: 50%; font-size: 16px; }
+.streak span.on { border: 2px solid var(--accent); background: var(--yellow-soft); rotate: -10deg; }
+@media (prefers-reduced-motion: reduce) { .rank-badge, .rush-line.in, .rush-title { animation: none !important; } }
+.share-text { width: 100%; font: inherit; font-size: 15px; padding: 10px; border: 2px solid var(--ink); border-radius: 12px; background: var(--paper); resize: none; }

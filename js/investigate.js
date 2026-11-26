@@ -386,6 +386,8 @@
     // 진행 상태
     let actions = lv.actions + (opt.actionsBonus | 0) + (opt.boss ? 2 : 0);   // 보스는 증거가 둘 필요해서 +2
     let hearts = 3 + (opt.heartsBonus | 0);
+    const actionsStart = actions;
+    let misses = 0, rushFirstTry = null;   // 헛짚은 횟수, 반론 러시를 한 번에 성공했나
     let hintsLeftFree = opt.freeHints | 0, hintsUsed = 0, hintsAll = 0;
     const found = [];                         // 찾은 단서 (순서대로)
     const heard = {}; sus.forEach(s => { heard[s.id] = []; });   // 들은 말: { tag, yes, text }
@@ -408,6 +410,13 @@
     const outOfTime = () => actions !== Infinity && actions <= 0;
     const heartsText = () => '❤️'.repeat(hearts) + '🤍'.repeat(Math.max(0, 3 + (opt.heartsBonus | 0) - hearts));
     const starsNow = () => Math.max(1, Math.min(3, hearts) - hintsUsed);
+    // 사건 랭크: 100점에서 헛짚기·힌트를 빼고, 조사 횟수를 아낀 만큼 ±10, 반론 러시 한 번에 성공 +10
+    function rankNow() {
+      let pts = 100 - 25 * misses - 15 * hintsAll;
+      if (actions !== Infinity && actionsStart !== Infinity && actionsStart > 0) pts += Math.round(20 * actions / actionsStart) - 10;
+      if (rushFirstTry) pts += 10;
+      return { letter: pts >= 95 ? 'S' : pts >= 75 ? 'A' : pts >= 50 ? 'B' : 'C', pts };
+    }
     const relatedLine = c => (lv.related && c.exposes && condOf(c.exposes) ? h('p', { class: 'muted small-text' }, `🔗 관련 이야기: "${clause(c.exposes)} 사람"`) : null);
 
     // 배경마다 다른 곡: 교실 = 초침, 골목 = 밤엔 빗소리 / 낮엔 취조실 블루스, 축제 = 파티 그루브, 가게 = 밤엔 어두운 방 / 낮엔 블루스,
@@ -657,16 +666,17 @@
       if (pre) step2(pre); else step1();
     }
 
-    function judge(s, st, c) {
+    function judge(s, st, c, retry) {
       const right = s === culprit && lieTags.includes(st.tag) && c.exposes === st.tag && !hits.has(st.tag);
       if (right) { hits.add(st.tag); return objection(s, st, c); }
-      hearts--;
+      hearts--; misses++;
+      if (retry) rushFirstTry = false;
       const line = s !== culprit ? '저를 의심하는 거예요? 그 증거랑 제 말은 하나도 안 어긋나요!' : '그게 뭐 어쨌다는 거죠? 그 증거랑 그 말은 아무 상관 없는데요.';
       if (hearts <= 0) return ending(false);
       render(root, hud(),
         h('div', { class: 'card alert center' }, face(s, 76, s === culprit ? 'smug' : 'angry'), h('p', {}, h('b', {}, s.name), ': ', `“${line}”`),
           h('p', { class: 'muted' }, `신뢰 -1 · 남은 신뢰 ${heartsText()}`)),
-        h('button', { class: 'primary', onClick: () => deduce(s === culprit ? s : null) }, '🔎 다시 생각해 보기'),
+        h('button', { class: 'primary', onClick: retry || (() => deduce(s === culprit ? s : null)) }, retry ? '⚡ 다시 반론 러시' : '🔎 다시 생각해 보기'),
         h('button', { onClick: () => scene('😓 헛짚었다. 수첩을 다시 읽어 보자.') }, '↩ 현장으로'));
       if (DO.fx) DO.fx.fail(null, 'miss'); else sfx('miss');
       tension();
@@ -696,7 +706,8 @@
             h('div', { class: 'obj-face' }, face(s, 96, 'smug')),
             h('div', { class: 'boss-hp' }, Array.from({ length: needHits }, (_, i) => h('span', { class: i < hits.size ? 'off' : '' }))),
             capB,
-            h('button', { class: 'danger', onClick: () => deduce(s) }, '🔎 다른 거짓말도 찌른다'),
+            h('button', { class: 'danger', onClick: () => rush(s) }, '⚡ 반론 러시 — 쏟아지는 말 속 거짓을 찌른다'),
+            h('button', { class: 'small', onClick: () => deduce(s) }, '📋 천천히 고르기'),
             h('button', { onClick: () => scene('👑 범인이 버티고 있다. 다른 거짓말을 무너뜨릴 증거를 찾자.') }, '↩ 현장으로 (증거 더 찾기)'));
           typeInto(capB, `${s.name}: "하, 그게 다예요? 그거 하나로는 제가 범인이라는 증거가 안 되죠!"`);
           sfx('counter');
@@ -705,6 +716,73 @@
         }
         confession(s);
       }
+    }
+    // ---------- 반론 러시 (보스의 반격) ----------
+    // 범인의 말이 하나씩 흘러간다(한 마디 RUSH_MS). 증거를 하나 들고, 그 증거와 어긋나는 말이 지나가는 순간 "이의 있음!".
+    // 섞여 나오는 허세(FILLERS)는 찔러도 소용없다(헛짚기). 세 바퀴 동안 안 누르면 범인이 숨을 고른다(다시 듣기).
+    const RUSH_MS = 3600;
+    const FILLERS = ['증거? 그런 건 어디에도 없어요!', '저는 처음부터 끝까지 말한 그대로예요.', '탐정님이 뭘 잘못 알고 계신 거예요.',
+      '시간 낭비예요. 다른 사람이나 조사하시죠.', '하하, 그 정도로는 저 못 잡아요.'];
+    function rush(s) {
+      const lines = heard[s.id].filter(st => !hits.has(st.tag));
+      if (!lines.length || !found.length) {
+        render(root, hud(),
+          h('div', { class: 'obj-face' }, face(s, 96, 'smug')),
+          h('p', { class: 'cine-cap' }, `${s.name}: "할 말 다 했는데요? 더 물어볼 거라도 있어요?"`),
+          h('p', { class: 'muted' }, '아직 무너뜨릴 말을 듣지 못했다. 단서를 보여 주며 이야기를 더 들어 보자.'),
+          h('button', { class: 'primary', onClick: () => scene('👑 범인의 다른 말을 더 들어야 한다.') }, '↩ 현장으로'));
+        return;
+      }
+      if (rushFirstTry === null) rushFirstTry = true;
+      const seq = shuffle([...lines.map(st => ({ st, text: st.text })), ...shuffle(FILLERS).slice(0, 2).map(text => ({ text }))]);
+      let held = found.length === 1 ? found[0] : null, idx = -1, loops = 0, timer = null;
+      const quote = h('p', { class: 'rush-line' });
+      const bar = h('div', { class: 'rush-bar' }, h('span'));
+      const vfx = h('div', { class: 'obj-face rush-face' }, face(s, 84, 'smug'));
+      const objBtn = h('button', { class: 'danger rush-obj', onClick: () => strike() }, '이의 있음!');
+      const pickRow = h('div', { class: 'rush-clues' });
+      const paintPick = () => pickRow.replaceChildren(...found.map(c => h('button', {
+        class: 'small rush-clue' + (held === c ? ' primary' : ''), 'data-quiet': '1',
+        onClick: () => { held = c; sfx('pop'); paintPick(); objBtn.disabled = false; },
+      }, '🗂 ' + (c.text.length > 30 ? c.text.slice(0, 29) + '…' : c.text))));
+      objBtn.disabled = !held;
+      const box = h('div', { class: 'rush' },
+        h('div', { class: 'rush-title' }, '⚡ 반론 러시'),
+        vfx, h('div', { class: 'rush-say' }, quote, bar),
+        h('p', { class: 'muted small-text' }, '증거를 하나 들고, 그 증거와 어긋나는 말이 지나갈 때 "이의 있음!" — 허세를 찌르면 신뢰 -1.'),
+        pickRow, objBtn,
+        h('button', { class: 'small', onClick: () => { stop(); deduce(s); } }, '📋 천천히 고르기'));
+      const stop = () => { clearTimeout(timer); timer = null; };
+      function step() {
+        if (!document.body.contains(box)) return stop();
+        idx++;
+        if (idx >= seq.length) { idx = 0; loops++; }
+        if (loops >= 3) {
+          stop();
+          quote.textContent = `(${DO.josa(s.name, '이/가')} 숨을 고른다.)`;
+          bar.firstChild.style.animation = 'none';
+          objBtn.replaceWith(h('button', { class: 'primary', onClick: () => rush(s) }, '🔁 다시 듣기'));
+          return;
+        }
+        quote.textContent = `“${seq[idx].text}”`;
+        quote.classList.remove('in'); void quote.offsetWidth; quote.classList.add('in');
+        const sp = bar.firstChild;
+        sp.style.animation = 'none'; void sp.offsetWidth; sp.style.animation = `rushBar ${RUSH_MS}ms linear forwards`;
+        sfx('type');
+        timer = setTimeout(step, RUSH_MS);
+      }
+      function strike() {
+        if (!held || idx < 0) return;
+        stop();
+        const cur = seq[idx];
+        if (cur.st) return judge(s, cur.st, held, () => rush(s));
+        judge(s, { tag: null, text: cur.text }, held, () => rush(s));
+      }
+      render(root, hud(), box);
+      paintPick();
+      music('hold', 'pursuit');
+      sfx('counter');
+      timer = setTimeout(step, 700);
     }
     // 자백: 범인의 비밀 프로필을 1인칭으로 바꿔 쓴다 (거짓말 지시 문장은 뺀다)
     function confessionText() {
@@ -726,23 +804,48 @@
       music('hold', 'confess');
     }
 
+    function shareText(rk, stars) {
+      const steps = actions === Infinity ? '👣 ∞' : `👣 ${actions}번 남김`;
+      return `🕵️ 탐정 사무소 · ${C.title}\n${opt.boss ? '👑 ' : ''}랭크 ${rk.letter} ${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}\n${heartsText()} · ${steps} · 힌트 ${hintsAll}번`;
+    }
+    async function share(text) {
+      const url = location.origin + location.pathname;
+      try {
+        if (navigator.share) await navigator.share({ text, url });
+        else { await navigator.clipboard.writeText(`${text}\n${url}`); DO.toast('결과를 복사했어요. 친구에게 붙여 넣어 보세요!'); }
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;
+        // 복사도 막혔으면 글자를 보여 주고 직접 복사하게
+        if (DO.openSheet) {
+          const box = h('textarea', { class: 'share-text', readonly: true, rows: 5 }, `${text}
+${url}`);
+          DO.openSheet('📤 결과 공유', h('div', {}, h('p', { class: 'muted small-text' }, '아래 글을 길게 눌러 복사해 친구에게 보내세요.'), box));
+          setTimeout(() => box.select(), 50);
+        } else DO.toast('공유하지 못했어요.');
+      }
+    }
     function ending(win) {
       const stars = win ? starsNow() : 0;
+      const rk = win ? rankNow() : null;
+      const RANK_LINE = { S: '완벽한 수사! 소장님이 박수를 친다.', A: '훌륭한 추리. 조금만 더 날카롭게!', B: '해결은 했다. 다음엔 덜 헤매자.', C: '아슬아슬한 해결. 수첩을 더 꼼꼼히!' };
       render(root,
         h('div', { class: 'verdict' },
           h('div', { class: 'stamp ' + (win ? 'win' : 'lose') }, win ? '검거' : '미제'),
+          rk ? h('div', { class: `rank-badge rank-${rk.letter}`, title: `${rk.pts}점` }, h('small', {}, 'RANK'), rk.letter) : null,
+          rk ? h('p', { class: 'muted small-text' }, RANK_LINE[rk.letter]) : null,
           face(culprit, 96, win ? 'sad' : 'smug'),
           h('h2', {}, win ? '사건 해결!' : '신뢰를 모두 잃었다'),
           h('p', {}, '범인: ', h('b', {}, culprit.name)),
           win ? h('p', { class: 'reward-stars' }, [1, 2, 3].map(k => h('span', { class: k <= stars ? 'on' : '' }, '★'))) : null,
-          h('p', { class: 'muted small-text' }, `남은 신뢰 ${Math.max(0, hearts)} · 조수 힌트 ${hintsUsed}번`)),
+          h('p', { class: 'muted small-text' }, `남은 신뢰 ${Math.max(0, hearts)} · 헛짚기 ${misses}번 · 조수 힌트 ${hintsAll}번${actions === Infinity ? '' : ` · 남은 조사 ${actions}/${actionsStart}`}`),
+          rk ? h('button', { class: 'small', onClick: () => share(shareText(rk, stars)) }, '📤 결과 공유하기') : null),
         h('h3', {}, '🧩 사건의 진실'),
         h('div', { class: 'card' },
           lieTags.map(t => {
             const c = C.clues.find(x => x.exposes === t);
             return h('p', {}, `· "${clause(t)} 사람" — ${DO.josa(culprit.name, '은/는')} ${claims(culprit, t) ? '맞다고' : '아니라고'} 했지만 거짓. 증거: ${c ? c.text : '-'}`);
           })),
-        h('button', { class: 'primary', onClick: () => opt.onDone && opt.onDone({ win, stars, hints: hintsAll, hearts: Math.max(0, hearts) }) }, '📒 수첩으로 돌아가기'));
+        h('button', { class: 'primary', onClick: () => opt.onDone && opt.onDone({ win, stars, hints: hintsAll, hearts: Math.max(0, hearts), rank: rk ? rk.letter : null }) }, '📒 수첩으로 돌아가기'));
       if (DO.fx) DO.fx.ending(win);
     }
 
